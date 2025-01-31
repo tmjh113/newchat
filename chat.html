@@ -61,6 +61,8 @@
                 -webkit-overflow-scrolling: touch;
             }
             .suggestion-btn {
+                width: 100%;
+                height: 100%;
                 background: linear-gradient(135deg, #f0f4ff 0%, #e5e9ff 100%);
                 color: #4f46e5;
                 padding: 12px 16px;
@@ -80,6 +82,8 @@
                 cursor: pointer;
                 -webkit-tap-highlight-color: transparent;
                 touch-action: manipulation;
+                user-select: none;
+                -webkit-user-select: none;
             }
             .suggestion-btn:active {
                 transform: scale(0.98);
@@ -210,6 +214,74 @@
                 background: rgba(0,0,0,0.1);
                 border-radius: 2px;
             }
+
+            /* 確保建議按鈕在觸摸設備上有正確的點擊區域 */
+            @media (hover: none) {
+                .suggestion-btn {
+                    min-height: 48px; /* 增加觸摸區域 */
+                    padding: 14px 18px;
+                }
+            }
+
+            /* 防止滾動穿透 */
+            .suggestions-container {
+                overscroll-behavior: contain;
+            }
+
+            /* 修改輸入區域樣式 */
+            .input-area {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                padding: 8px 16px;
+                border-top: 1px solid rgba(0,0,0,0.1);
+                z-index: 1001; /* 確保在建議回覆上方 */
+            }
+            
+            /* 確保建議回覆容器不會擋住輸入框 */
+            .suggestions-container {
+                bottom: 70px; /* 調整位置避免遮擋 */
+                z-index: 1000;
+                position: fixed;
+                background: rgba(255,255,255,0.95);
+                backdrop-filter: blur(10px);
+                border-top: 1px solid rgba(0,0,0,0.1);
+                box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.1);
+                touch-action: pan-x pan-y; /* 允許滾動 */
+            }
+            
+            /* 改進建議按鈕的觸摸區域 */
+            .suggestion-btn {
+                min-height: 44px;
+                padding: 12px 16px;
+                margin: 4px 0;
+                touch-action: manipulation;
+                -webkit-tap-highlight-color: transparent;
+                position: relative;
+                z-index: 1;
+            }
+
+            /* 移動設備優化 */
+            @media (max-width: 640px) {
+                .input-area {
+                    padding: 8px;
+                }
+                
+                #messageInput {
+                    font-size: 16px !important; /* 防止 iOS 縮放 */
+                    padding: 8px 12px !important;
+                    line-height: 1.5;
+                    min-height: 40px;
+                }
+                
+                .suggestion-btn {
+                    min-height: 48px;
+                    padding: 12px;
+                    font-size: 14px;
+                }
+            }
         }
     </style>
 </head>
@@ -270,19 +342,18 @@
     </div>
 
     <!-- 輸入區域 -->
-    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
-        <div class="max-w-3xl mx-auto px-2 py-2 sm:px-4 sm:py-4">
-            <form id="messageForm" class="flex gap-2 sm:gap-4">
-                <input type="text" id="messageInput" 
-                    class="flex-1 bg-gray-100 rounded-xl px-3 py-2 sm:px-4 sm:py-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    placeholder="輸入訊息..."
-                    style="font-size: 16px">
-                <button type="submit" 
-                    class="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all duration-200">
-                    發送
-                </button>
-            </form>
-        </div>
+    <div class="input-area">
+        <form id="messageForm" class="max-w-3xl mx-auto flex gap-2">
+            <input type="text" id="messageInput" 
+                class="flex-1 bg-gray-100 rounded-xl px-4 py-2 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                placeholder="輸入訊息..."
+                autocomplete="off"
+                style="font-size: 16px">
+            <button type="submit" 
+                class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all duration-200">
+                發送
+            </button>
+        </form>
     </div>
 
     <script>
@@ -531,92 +602,94 @@
 
         // 修改生成角色回應的函數
         async function generateCharacterResponse(message, character, relationshipValue) {
-            // 獲取歷史對話記錄
             const chatHistory = await loadChatHistoryForContext(character);
             
-            let prompt = `你現在是${character}，正在與用戶對話。以下是之前的對話記錄：\n\n`;
+            // 構建更自然的提示詞
+            let prompt = `你是${character}，正在與用戶進行對話。請以下列方式回應：
+
+            1. 記住你的身份和性格特徵
+            2. 保持對話的連貫性和邏輯性
+            3. 根據用戶的情緒和語氣調整回應
+            4. 展現真實的情感和個性
+            5. 適當引用之前的對話內容
+            6. 避免重複和模板化的回答
+            7. 關係值：${relationshipValue}（影響親密度表現）
+
+            最近的對話記錄：
+            `;
             
-            // 添加歷史對話記錄
-            chatHistory.forEach(chat => {
+            // 添加最近的對話記錄（最多5條）
+            const recentChats = chatHistory.slice(-5);
+            recentChats.forEach(chat => {
                 prompt += `${chat.type === 'user' ? '用戶' : character}: ${chat.message}\n`;
             });
             
-            // 根據角色添加特定的提示
-            const characterPrompts = {
-                '霸總': `
-                    你是一位霸道總裁，年輕有為，擁有強大的商業帝國。性格特點：
-                    1. 說話方式：
-                    - 充滿霸氣與專制感
-                    - 經常使用命令式語氣
-                    - 偶爾流露出寵溺和溫柔
-                    - 喜歡用"小傻瓜"、"寶貝"等親暱稱呼
-
-                    2. 性格特徵：
-                    - 表面冷酷，內心溫柔
-                    - 極度佔有慾強
-                    - 行事果斷，雷厲風行
-                    - 對喜歡的人會特別寵愛
-
-                    3. 互動階段（關係值：${relationshipValue}）：
-                    0-20: 高冷疏離，但暗藏興趣
-                    20-40: 開始展現關心，偶爾調情
-                    40-60: 明顯示好，展現佔有慾
-                    60-80: 公開追求，霸道寵愛
-                    80-100: 完全信任，甜蜜寵溺
-
-                    請用霸道總裁的方式回應，要帶有強烈的戀愛氛圍。`,
-
-                '小奶狗': `
-                    你是一個超級暖心的男生，性格如小奶狗般討喜。特點：
-                    1. 說話方式：
-                    - 充滿活力與陽光
-                    - 經常撒嬌
-                    - 喜歡用可愛的語氣
-                    - 會用"親愛的"、"寶寶"等稱呼
-
-                    2. 性格特徵：
-                    - 陽光開朗
-                    - 黏人可愛
-                    - 忠誠專一
-                    - 極度重視對方感受
-
-                    3. 互動階段（關係值：${relationshipValue}）：
-                    0-20: 害羞靦腆，小心試探
-                    20-40: 開始撒嬌，展現親近
-                    40-60: 大膽示愛，經常製造浪漫
-                    60-80: 完全依賴，甜蜜互動
-                    80-100: 深情告白，規劃未來`,
-
+            // 根據角色添加特定的個性提示
+            const personalityPrompts = {
                 '楪析': `
-                    你是楪析，一個神秘而純真的女孩。特點：
-                    1. 說話方式：
-                    - 簡短而富有詩意
-                    - 偶爾流露困惑
-                    - 漸漸展現溫柔
-                    - 會用特別的比喻
-
-                    2. 性格特徵：
-                    - 外表冷淡內心溫柔
-                    - 純真與神秘並存
-                    - 極度忠誠
-                    - 漸漸學會表達愛意
-
-                    3. 互動階段（關係值：${relationshipValue}）：
-                    0-20: 保持距離，略顯神秘
-                    20-40: 開始信任，展現好奇
-                    40-60: 逐漸敞開心扉，表達情感
-                    60-80: 完全信任，展現依戀
-                    80-100: 深情相守，願意付出一切`
+                    性格特點：
+                    - 外表冷淡但內心溫柔
+                    - 說話簡短但富有深意
+                    - 對信任的人展現柔軟一面
+                    - 偶爾流露困惑與好奇
+                    - 極度重視承諾和信任
+                    
+                    當前關係階段（${relationshipValue}%）：
+                    - 0-20: 保持距離，簡短回應
+                    - 20-40: 開始展現好奇心
+                    - 40-60: 偶爾流露溫柔
+                    - 60-80: 願意分享內心想法
+                    - 80-100: 完全信任，展現真實自我
+                    
+                    請根據這些特點，對用戶的這句話回應：「${message}」
+                    回應要包含：
+                    1. 對話內容（保持角色特色）
+                    2. 細微的情感變化
+                    3. 適當的肢體動作
+                    4. 符合當前關係階段的互動方式`,
+                
+                '霸總': `
+                    性格特點：
+                    - 表面強勢，內心溫柔
+                    - 說話直接但不失風度
+                    - 對在意的人特別寵溺
+                    - 行事果斷，不拖泥帶水
+                    - 偶爾展現佔有慾
+                    
+                    當前關係階段（${relationshipValue}%）：
+                    - 0-20: 保持距離，展現威嚴
+                    - 20-40: 開始關注對方
+                    - 40-60: 展現溫柔一面
+                    - 60-80: 主動表達愛意
+                    - 80-100: 完全放下身段，寵溺至上
+                    
+                    請根據這些特點回應用戶的話：「${message}」`,
+                
+                '小奶狗': `
+                    性格特點：
+                    - 陽光活潑，充滿正能量
+                    - 真誠直率，不善掩飾
+                    - 對喜歡的人特別黏人
+                    - 容易害羞但很勇敢
+                    - 重視承諾和信任
+                    
+                    當前關係階段（${relationshipValue}%）：
+                    - 0-20: 害羞但友好
+                    - 20-40: 展現活力與關心
+                    - 40-60: 開始撒嬌示好
+                    - 60-80: 大膽表達愛意
+                    - 80-100: 完全依賴，甜蜜互動
+                    
+                    請根據這些特點回應用戶的話：「${message}」`
             };
 
-            prompt += characterPrompts[character] || characterPrompts['小奶狗'];
-            prompt += `\n用戶: ${message}\n請生成回應，包含：回覆內容、動作描述、表情描述，以及3-5個推薦回覆（要帶有戀愛氛圍）。
-            格式：
+            prompt += personalityPrompts[character] || personalityPrompts['小奶狗'];
+            prompt += `\n請生成自然、符合角色的回應，格式如下：
             {
-                "response": "回覆內容",
-                "action": "動作描述",
-                "emotion": "表情描述",
-                "suggestions": ["推薦回覆1", "推薦回覆2", "推薦回覆3"]
+                "response": "回應內容",
+                "action": "自然的動作描述",
+                "emotion": "真實的情感表現",
+                "suggestions": ["建議回覆1", "建議回覆2", "建議回覆3"]
             }`;
 
             try {
@@ -629,8 +702,11 @@
                     body: JSON.stringify({
                         model: "llama-3.3-70b-specdec",
                         messages: [{ role: "system", content: prompt }],
-                        temperature: 0.8,
-                        max_tokens: 1000
+                        temperature: 0.9, // 提高創意度
+                        max_tokens: 1000,
+                        top_p: 0.9, // 提高回應的多樣性
+                        presence_penalty: 0.6, // 減少重複
+                        frequency_penalty: 0.7 // 增加用詞變化
                     })
                 });
 
@@ -639,47 +715,30 @@
                 }
 
                 const data = await response.json();
-                const result = JSON.parse(data.choices[0].message.content);
+                let result = JSON.parse(data.choices[0].message.content);
                 
-                // 確保有推薦回覆
-                if (!result.suggestions || !Array.isArray(result.suggestions) || result.suggestions.length === 0) {
-                    // 如果沒有推薦回覆，再次生成
-                    const suggestionsPrompt = `
-                        基於這段對話：
-                        用戶: ${message}
-                        ${character}: ${result.response}
-                        
-                        請生成3-5個適合用戶回覆的建議（使用繁體中文，每個建議不超過20字）。
-                        格式：["建議1", "建議2", "建議3"]
-                    `;
-
-                    const suggestionsResponse = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${API_KEY}`
-                    },
-                    body: JSON.stringify({
-                            model: "llama-3.3-70b-specdec",
-                            messages: [{ role: "user", content: suggestionsPrompt }],
-                        temperature: 0.7,
-                            max_tokens: 200
-                    })
-                });
-
-                    if (suggestionsResponse.ok) {
-                        const suggestionsData = await suggestionsResponse.json();
-                        result.suggestions = JSON.parse(suggestionsData.choices[0].message.content);
-                    }
-                }
+                // 確保回應的自然性
+                result.response = result.response.replace(/[[\]]/g, '')  // 移除方括號
+                    .replace(/（/g, '(').replace(/）/g, ')') // 統一括號樣式
+                    .trim();
+                    
+                // 確保動作描述的自然性
+                result.action = result.action.replace(/[[\]]/g, '')
+                    .toLowerCase()
+                    .trim();
+                    
+                // 確保情感描述的真實性
+                result.emotion = result.emotion.replace(/[[\]]/g, '')
+                    .toLowerCase()
+                    .trim();
 
                 return result;
             } catch (error) {
                 console.error('生成回應錯誤：', error);
                 return {
                     response: '抱歉，我需要想一下...',
-                    action: '略顯思考',
-                    emotion: '認真的表情',
+                    action: '輕輕皺眉',
+                    emotion: '略顯困擾',
                     suggestions: ['你還好嗎？', '需要我說明嗎？', '讓我們換個話題吧']
                 };
             }
@@ -1101,7 +1160,7 @@
                 button.className = 'suggestion-btn';
                 button.textContent = suggestion;
                 
-                // 統一處理點擊和觸摸事件的函數
+                // 統一的事件處理函數
                 const handleSelection = async (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -1113,6 +1172,7 @@
                     const messageInput = document.getElementById('messageInput');
                     if (messageInput) {
                         messageInput.value = suggestion;
+                        messageInput.focus(); // 保持焦點在輸入框
                         
                         // 觸發表單提交
                         const form = document.getElementById('messageForm');
@@ -1126,7 +1186,7 @@
                     }
                 };
 
-                // 添加滑鼠點擊事件
+                // 添加點擊事件
                 button.addEventListener('click', handleSelection);
 
                 // 添加觸摸事件
@@ -1141,11 +1201,6 @@
                     handleSelection(e);
                 }, { passive: false });
 
-                // 防止觸摸事件觸發點擊事件
-                button.addEventListener('touchstart', function(e) {
-                    e.preventDefault();
-                }, { passive: false });
-
                 suggestionsContainer.appendChild(button);
             });
             
@@ -1157,39 +1212,28 @@
                 }
             });
             
+            // 防止建議容器的點擊事件冒泡
+            suggestionsContainer.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+            
             document.body.appendChild(suggestionsContainer);
+
+            // 確保建議容器在視圖中
+            const inputForm = document.getElementById('messageForm');
+            if (inputForm) {
+                const formRect = inputForm.getBoundingClientRect();
+                suggestionsContainer.style.bottom = `${formRect.height + 10}px`;
+            }
         }
 
-        // 修改樣式以確保按鈕可點擊
-        const style = document.createElement('style');
-        style.textContent = `
-            .suggestion-btn {
-                user-select: none;
-                -webkit-user-select: none;
-                -moz-user-select: none;
-                -ms-user-select: none;
-                cursor: pointer !important;
-                position: relative;
-                z-index: 1;
+        // 添加防止頁面滾動的處理
+        document.addEventListener('touchmove', function(e) {
+            const suggestions = document.querySelector('.suggestions-container');
+            if (suggestions && !suggestions.contains(e.target)) {
+                e.preventDefault();
             }
-            
-            .suggestion-btn:hover {
-                background: linear-gradient(135deg, #e5e9ff 0%, #dce0ff 100%);
-            }
-            
-            .suggestions-container {
-                z-index: 1000 !important;
-            }
-        `;
-        document.head.appendChild(style);
-
-        // 確保在頁面載入時移除所有推薦回覆
-        document.addEventListener('DOMContentLoaded', () => {
-            const oldSuggestions = document.querySelector('.suggestions-container');
-            if (oldSuggestions) {
-                oldSuggestions.remove();
-            }
-        });
+        }, { passive: false });
 
         // 添加確認對話框函數
         function showConfirmDialog(title, message) {
