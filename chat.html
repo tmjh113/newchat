@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>聊天室</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -47,31 +47,40 @@
                 bottom: 80px;
                 left: 0;
                 right: 0;
-                padding: 8px;
-                background: rgba(255,255,255,0.95);
+                padding: 8px 12px;
+                background: rgba(255,255,255,0.98);
                 backdrop-filter: blur(10px);
                 border-top: 1px solid rgba(0,0,0,0.1);
                 z-index: 1000;
-                display: flex;
-                flex-wrap: wrap;
-                gap: 6px;
-                justify-content: center;
-                max-height: 120px;
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 8px;
+                max-height: 160px;
                 overflow-y: auto;
+                box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
             }
             .suggestion-btn {
-                padding: 6px 12px;
+                background: linear-gradient(135deg, #f0f4ff 0%, #e5e9ff 100%);
+                color: #4f46e5;
+                padding: 8px 12px;
+                border-radius: 12px;
                 font-size: 0.875rem;
+                font-weight: 500;
+                border: 1px solid rgba(79, 70, 229, 0.2);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                transition: all 0.2s ease;
                 white-space: normal;
                 text-align: center;
-                min-height: 32px;
+                min-height: 40px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                line-height: 1.3;
             }
             .suggestion-btn:active {
-                transform: scale(0.95);
+                transform: scale(0.98);
                 background: linear-gradient(135deg, #e5e9ff 0%, #dce0ff 100%);
+                box-shadow: 0 1px 2px rgba(0,0,0,0.1);
             }
             .character-avatar {
                 width: 48px;
@@ -169,6 +178,32 @@
                     padding: 0.5rem 1rem;
                     font-size: 0.875rem;
                 }
+
+                .suggestions-container {
+                    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                    padding: 8px;
+                    gap: 6px;
+                }
+
+                .suggestion-btn {
+                    font-size: 0.8125rem;
+                    min-height: 36px;
+                    padding: 6px 10px;
+                }
+            }
+
+            /* 自定義滾動條 */
+            .suggestions-container::-webkit-scrollbar {
+                width: 4px;
+            }
+
+            .suggestions-container::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            .suggestions-container::-webkit-scrollbar-thumb {
+                background: rgba(0,0,0,0.1);
+                border-radius: 2px;
             }
         }
     </style>
@@ -235,7 +270,8 @@
             <form id="messageForm" class="flex gap-2 sm:gap-4">
                 <input type="text" id="messageInput" 
                     class="flex-1 bg-gray-100 rounded-xl px-3 py-2 sm:px-4 sm:py-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    placeholder="輸入訊息...">
+                    placeholder="輸入訊息..."
+                    style="font-size: 16px">
                 <button type="submit" 
                     class="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all duration-200">
                     發送
