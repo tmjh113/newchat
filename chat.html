@@ -1101,39 +1101,87 @@
                 button.className = 'suggestion-btn';
                 button.textContent = suggestion;
                 
-                // 修改點擊處理
-                button.addEventListener('touchstart', function(e) {
-                    e.preventDefault(); // 防止觸發其他事件
-                    this.style.transform = 'scale(0.98)';
-                }, { passive: false });
-
-                button.addEventListener('touchend', async function(e) {
+                // 統一處理點擊和觸摸事件的函數
+                const handleSelection = async (e) => {
                     e.preventDefault();
-                    this.style.transform = '';
+                    e.stopPropagation();
                     
                     // 移除所有推薦回覆
                     suggestionsContainer.remove();
                     
                     // 設置輸入框的值
                     const messageInput = document.getElementById('messageInput');
-                    messageInput.value = suggestion;
-                    
-                    // 觸發表單提交
-                    const form = document.getElementById('messageForm');
-                    if (form) {
-                        const submitEvent = new Event('submit', {
-                            bubbles: true,
-                            cancelable: true
-                        });
-                        form.dispatchEvent(submitEvent);
+                    if (messageInput) {
+                        messageInput.value = suggestion;
+                        
+                        // 觸發表單提交
+                        const form = document.getElementById('messageForm');
+                        if (form) {
+                            const submitEvent = new Event('submit', {
+                                bubbles: true,
+                                cancelable: true
+                            });
+                            form.dispatchEvent(submitEvent);
+                        }
                     }
+                };
+
+                // 添加滑鼠點擊事件
+                button.addEventListener('click', handleSelection);
+
+                // 添加觸摸事件
+                button.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    this.style.transform = 'scale(0.98)';
+                }, { passive: false });
+
+                button.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    this.style.transform = '';
+                    handleSelection(e);
+                }, { passive: false });
+
+                // 防止觸摸事件觸發點擊事件
+                button.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
                 }, { passive: false });
 
                 suggestionsContainer.appendChild(button);
             });
             
+            // 添加點擊外部關閉建議
+            document.addEventListener('click', function closeHandler(e) {
+                if (!suggestionsContainer.contains(e.target)) {
+                    suggestionsContainer.remove();
+                    document.removeEventListener('click', closeHandler);
+                }
+            });
+            
             document.body.appendChild(suggestionsContainer);
         }
+
+        // 修改樣式以確保按鈕可點擊
+        const style = document.createElement('style');
+        style.textContent = `
+            .suggestion-btn {
+                user-select: none;
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                cursor: pointer !important;
+                position: relative;
+                z-index: 1;
+            }
+            
+            .suggestion-btn:hover {
+                background: linear-gradient(135deg, #e5e9ff 0%, #dce0ff 100%);
+            }
+            
+            .suggestions-container {
+                z-index: 1000 !important;
+            }
+        `;
+        document.head.appendChild(style);
 
         // 確保在頁面載入時移除所有推薦回覆
         document.addEventListener('DOMContentLoaded', () => {

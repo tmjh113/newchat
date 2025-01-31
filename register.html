@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登入 - 角色聊天</title>
+    <title>註冊 - 角色聊天</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- 更新 Firebase SDK 引入 -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     
@@ -36,10 +35,7 @@
 <body class="min-h-screen bg-white font-['Noto_Sans_TC']">
     <!-- 背景裝飾 -->
     <div class="fixed inset-0 overflow-hidden pointer-events-none">
-        <!-- 柔和的網格背景 -->
         <div class="absolute inset-0" style="background-image: radial-gradient(#E5E7EB 1px, transparent 1px); background-size: 24px 24px;"></div>
-        
-        <!-- 柔和的漸層光暈 -->
         <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-purple-100/30 to-pink-100/30 rounded-full blur-3xl"></div>
         <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-blue-100/30 to-indigo-100/30 rounded-full blur-3xl"></div>
     </div>
@@ -47,20 +43,20 @@
     <!-- 主要內容 -->
     <div class="relative min-h-screen flex items-center justify-center p-4">
         <div class="w-full max-w-md">
-            <!-- 登入卡片 -->
+            <!-- 註冊卡片 -->
             <div class="bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-3xl shadow-xl border border-gray-100">
-                <!-- Logo 或標題區域 -->
+                <!-- 標題區域 -->
                 <div class="text-center mb-8">
                     <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3">
-                        歡迎回來
+                        創建帳號
                     </h1>
                     <p class="text-gray-600 text-lg">
-                        登入以開始你的聊天之旅
+                        加入我們的聊天社群
                     </p>
                 </div>
 
-                <!-- 登入表單 -->
-                <form id="loginForm" class="space-y-6">
+                <!-- 註冊表單 -->
+                <form id="registerForm" class="space-y-6">
                     <!-- 用戶名輸入框 -->
                     <div class="space-y-2">
                         <label for="username" class="block text-sm font-medium text-gray-700 ml-1">
@@ -71,7 +67,7 @@
                                 class="w-full px-5 py-3.5 bg-gray-50/50 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400
                                        focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500
                                        transition-all duration-300 group-hover:bg-gray-50"
-                                placeholder="輸入用戶名稱">
+                                placeholder="設定用戶名稱">
                             <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">@tmjh.pro</span>
                         </div>
                     </div>
@@ -85,24 +81,36 @@
                             class="w-full px-5 py-3.5 bg-gray-50/50 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400
                                    focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500
                                    transition-all duration-300 hover:bg-gray-50"
-                            placeholder="輸入密碼">
+                            placeholder="設定密碼">
                     </div>
 
-                    <!-- 登入按鈕 -->
+                    <!-- 確認密碼輸入框 -->
+                    <div class="space-y-2">
+                        <label for="confirmPassword" class="block text-sm font-medium text-gray-700 ml-1">
+                            確認密碼
+                        </label>
+                        <input id="confirmPassword" type="password" required 
+                            class="w-full px-5 py-3.5 bg-gray-50/50 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400
+                                   focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500
+                                   transition-all duration-300 hover:bg-gray-50"
+                            placeholder="再次輸入密碼">
+                    </div>
+
+                    <!-- 註冊按鈕 -->
                     <button type="submit" 
                         class="w-full mt-8 py-3.5 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium
                                hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2
                                transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0
                                shadow-lg shadow-purple-500/25">
-                        登入
+                        註冊
                     </button>
 
-                    <!-- 在登入按鈕後添加 -->
+                    <!-- 登入連結 -->
                     <div class="text-center mt-6">
                         <p class="text-gray-600">
-                            還沒有帳號？
-                            <a href="register.html" class="text-purple-600 hover:text-purple-700 font-medium">
-                                立即註冊
+                            已經有帳號了？
+                            <a href="login.html" class="text-purple-600 hover:text-purple-700 font-medium">
+                                立即登入
                             </a>
                         </p>
                     </div>
@@ -146,44 +154,60 @@
             });
 
             // 表單提交處理
-            document.getElementById('loginForm').addEventListener('submit', (e) => {
+            document.getElementById('registerForm').addEventListener('submit', (e) => {
                 e.preventDefault();
                 const username = document.getElementById('username').value;
                 const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
                 const email = `${username}@tmjh.pro`;
 
-                firebase.auth().signInWithEmailAndPassword(email, password)
+                // 驗證密碼
+                if (password !== confirmPassword) {
+                    alert('兩次輸入的密碼不一致');
+                    return;
+                }
+
+                // 密碼強度檢查
+                if (password.length < 6) {
+                    alert('密碼長度必須至少為6個字符');
+                    return;
+                }
+
+                // 創建用戶
+                firebase.auth().createUserWithEmailAndPassword(email, password)
                     .then((userCredential) => {
+                        alert('註冊成功！');
                         window.location.href = 'index.html';
                     })
                     .catch((error) => {
                         let errorMessage;
                         switch (error.code) {
-                            case 'auth/user-not-found':
-                                errorMessage = '找不到該用戶';
-                                break;
-                            case 'auth/wrong-password':
-                                errorMessage = '密碼錯誤';
+                            case 'auth/email-already-in-use':
+                                errorMessage = '該用戶名已被使用';
                                 break;
                             case 'auth/invalid-email':
                                 errorMessage = '無效的用戶名稱';
                                 break;
+                            case 'auth/operation-not-allowed':
+                                errorMessage = '註冊功能暫時關閉';
+                                break;
+                            case 'auth/weak-password':
+                                errorMessage = '密碼強度太弱';
+                                break;
                             default:
                                 errorMessage = error.message;
                         }
-                        alert('登入失敗：' + errorMessage);
+                        alert('註冊失敗：' + errorMessage);
                     });
             });
         });
     </script>
 
     <style>
-        /* 平滑滾動 */
         html {
             scroll-behavior: smooth;
         }
 
-        /* 輸入框自動填充樣式 */
         input:-webkit-autofill,
         input:-webkit-autofill:hover,
         input:-webkit-autofill:focus {
@@ -191,14 +215,12 @@
             transition: background-color 5000s ease-in-out 0s;
         }
 
-        /* 禁用 iOS 輸入框樣式 */
         input {
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
         }
 
-        /* 漸變文字動畫 */
         @keyframes gradient {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
@@ -210,12 +232,10 @@
             animation: gradient 4s linear infinite;
         }
 
-        /* 陰影過渡效果 */
         .shadow-transition {
             transition: box-shadow 0.3s ease;
         }
 
-        /* 移動端優化 */
         @media (max-width: 640px) {
             .rounded-3xl {
                 border-radius: 1.5rem;
@@ -223,4 +243,4 @@
         }
     </style>
 </body>
-</html>
+</html> 
