@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聊天室</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .bg-custom {
+                background: #ffffff;
+            }
+            .messages-container {
+                height: calc(100vh - 220px);
+            }
+            .message-bubble {
+                position: relative;
+                max-width: 70%;
+                word-break: break-word;
+            }
+            .relationship-progress {
+                width: 200px;
+                height: 6px;
+                background: #e2e8f0;
+                border-radius: 3px;
+                overflow: hidden;
+            }
+            .relationship-bar {
+                height: 100%;
+                background: linear-gradient(90deg, #EC4899 0%, #8B5CF6 100%);
+                transition: width 0.5s ease;
+            }
+            .relationship-level {
+                font-size: 12px;
+                color: #6B7280;
+            }
+            .suggestions-container {
+                position: fixed;
+                bottom: 80px; /* 調整位置，避免擋住輸入框 */
+                left: 0;
+                right: 0;
+                padding: 10px;
+                background: rgba(255,255,255,0.95);
+                backdrop-filter: blur(10px);
+                border-top: 1px solid rgba(0,0,0,0.1);
+                z-index: 1000;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                justify-content: center;
+                animation: slideUp 0.3s ease-out;
+            }
+            .suggestion-btn {
+                background: linear-gradient(135deg, #f0f4ff 0%, #e5e9ff 100%);
+                color: #4f46e5;
+                padding: 8px 16px;
+                border-radius: 20px;
+                font-size: 0.9rem;
+                font-weight: 500;
+                border: 1px solid rgba(79, 70, 229, 0.2);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                transition: all 0.2s ease;
+                white-space: nowrap;
+                max-width: calc(100% - 20px);
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .suggestion-btn:active {
+                transform: scale(0.95);
+                background: linear-gradient(135deg, #e5e9ff 0%, #dce0ff 100%);
+            }
+            .character-avatar {
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                overflow: hidden;
+                border: 2px solid #e5e7eb;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                background: white;
+            }
+            .character-avatar img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                transition: transform 0.3s ease;
+            }
+            .character-avatar:hover img {
+                transform: scale(1.1);
+            }
+            .character-avatar-small {
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                overflow: hidden;
+                border: 2px solid #e5e7eb;
+                flex-shrink: 0;
+            }
+            .character-avatar-small img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            .messages-container {
+                padding: 1rem;
+                scroll-behavior: smooth;
+            }
+            .messages-container > div:last-child {
+                margin-bottom: 2rem;
+            }
+            .back-btn {
+                transition: all 0.2s ease;
+            }
+            .back-btn:hover {
+                transform: translateX(-2px);
+            }
+            .back-btn:active {
+                transform: scale(0.95);
+            }
+            /* 為楪析的消息添加特殊樣式 */
+            .character-message.inori {
+                background: linear-gradient(135deg, #ffebee 0%, #f3e5f5 100%);
+                border-left: 3px solid #ec407a;
+            }
+            
+            .character-avatar.inori img {
+                border-color: #ec407a;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-custom font-['Noto_Sans_TC']">
+    <!-- 頂部導航 -->
+    <div class="bg-white shadow fixed top-0 left-0 right-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <!-- 添加返回按鈕 -->
+                <button onclick="window.location.href='index.html'" 
+                    class="back-btn p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                </button>
+                <!-- 角色頭像 -->
+                <div class="character-avatar w-12 h-12 rounded-full overflow-hidden border-2 border-purple-200">
+                    <img id="characterAvatar" src="" alt="角色頭像" class="w-full h-full object-cover">
+                </div>
+                <div>
+                <h1 id="chatTitle" class="text-xl font-semibold text-gray-900"></h1>
+                    <!-- 關係值顯示 -->
+                    <div class="flex items-center gap-2">
+                        <div class="relationship-progress bg-gray-100 rounded-full">
+                            <div id="relationshipBar" class="relationship-bar rounded-full" style="width: 0%"></div>
+                        </div>
+                        <span id="relationshipLevel" class="relationship-level"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="resetChat()" class="reset-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+                <button onclick="signOut()" class="logout-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 聊天區域 -->
+    <div class="pt-20 pb-20 px-4">
+        <div class="max-w-3xl mx-auto messages-container overflow-y-auto py-4 px-4" id="messagesContainer">
+            <!-- 系統提示訊息 -->
+            <div class="flex justify-center mb-6">
+                <div class="bg-gray-100 text-gray-600 px-4 py-2 rounded-full text-sm">
+                    開始和對方聊天吧！
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 輸入區域 -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
+        <div class="max-w-3xl mx-auto px-4 py-4">
+            <form id="messageForm" class="flex gap-4">
+                <input type="text" id="messageInput" 
+                    class="flex-1 bg-gray-100 rounded-xl px-4 py-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    placeholder="輸入訊息...">
+                <button type="submit" 
+                    class="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all duration-200">
+                    發送
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 在腳本開頭添加 isSubmitting 變數
+        let isSubmitting = false;
+
+        // 首先定義所有需要的函數
+        
+        // 添加消息函數定義
+        function addMessage(message, type, actionInfo = null) {
+            const messagesContainer = document.getElementById('messagesContainer');
+            if (!messagesContainer) return;
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${type === 'user' ? 'justify-end' : 'justify-start'} mb-4 items-end gap-2`;
+            
+            const bubbleClass = type === 'user' 
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                : 'bg-gray-100 text-gray-700';
+            
+            let messageContent = message;
+            if (type === 'character' && actionInfo) {
+                messageContent += `<div class="mt-2 text-sm text-gray-500 italic">
+                    [動作：${actionInfo.action}]<br>
+                    [表情：${actionInfo.emotion}]
+                </div>`;
+            }
+            
+            // 添加頭像和消息氣泡的 HTML
+            if (type === 'character') {
+                const character = localStorage.getItem('selectedCharacter');
+                let avatarSrc;
+                
+                // 根據角色選擇對應的頭像
+                switch(character) {
+                    case '楪析':
+                        avatarSrc = '楪析.jpeg';
+                        break;
+                    case '霸總':
+                        avatarSrc = '霸總.jpeg';
+                        break;
+                    default:
+                        avatarSrc = '小奶狗.jpeg';
+                }
+                
+                messageDiv.innerHTML = `
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden">
+                        <img src="${avatarSrc}" alt="${character}頭像" class="w-full h-full object-cover">
+                    </div>
+                    <div class="message-bubble ${bubbleClass} px-4 py-2 rounded-2xl shadow-sm max-w-[70%]">
+                        ${messageContent}
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="message-bubble ${bubbleClass} px-4 py-2 rounded-2xl shadow-sm max-w-[70%]">
+                        ${messageContent}
+                    </div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // 添加系統消息函數
+        function addSystemMessage(message) {
+            const messagesContainer = document.getElementById('messagesContainer');
+            if (!messagesContainer) return;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'flex justify-center mb-4';
+            messageDiv.innerHTML = `
+                <div class="system-message px-4 py-2 rounded-full bg-gray-100 text-gray-600 text-sm">
+                    ${message}
+                </div>
+            `;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // 添加輸入中提示函數
+        function addTypingIndicator() {
+            const messagesContainer = document.getElementById('messagesContainer');
+            if (!messagesContainer) return null;
+
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'flex justify-start mb-4';
+            typingDiv.innerHTML = `
+                <div class="message-bubble bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl shadow-sm flex items-center gap-2">
+                    <span class="typing-dot animate-pulse">•</span>
+                    <span class="typing-dot animate-pulse delay-100">•</span>
+                    <span class="typing-dot animate-pulse delay-200">•</span>
+                </div>
+            `;
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            return typingDiv;
+        }
+
+        // Firebase 配置
+        const firebaseConfig = {
+            apiKey: "AIzaSyCRG8gbhbEm9jsMtCucF_h9YknBc4WtD40",
+            authDomain: "tmjhpro.firebaseapp.com",
+            databaseURL: "https://tmjhpro-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "tmjhpro",
+            storageBucket: "tmjhpro.firebasestorage.app",
+            messagingSenderId: "602310027605",
+            appId: "1:602310027605:web:6a2d5aa3ff2a8f1a7aa7dc",
+            measurementId: "G-CRPMJJ8KZP"
+        };
+
+        // 初始化 Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+
+        // 修改 API 配置
+        const API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+        const API_KEY = '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';
+
+        // 關係階段設定
+        const relationshipStages = {
+            0: { name: '初次相識', threshold: 0 },
+            1: { name: '培養感情', threshold: 20 },
+            2: { name: '曖昧互動', threshold: 40 },
+            3: { name: '確立關係', threshold: 60 },
+            4: { name: '深度陪伴', threshold: 80 }
+        };
+
+        // 關係數值
+        let relationshipValue = parseInt(localStorage.getItem('relationshipValue')) || 0;
+
+        // 更新關係進度條
+        function updateRelationshipUI() {
+            const bar = document.getElementById('relationshipBar');
+            const level = document.getElementById('relationshipLevel');
+            
+            if (!bar || !level) return;
+
+            bar.style.width = `${relationshipValue}%`;
+
+            // 確定當前階段
+            let currentStage = '初次相識';
+            for (const [key, stage] of Object.entries(relationshipStages)) {
+                if (relationshipValue >= stage.threshold) {
+                    currentStage = stage.name;
+                }
+            }
+            level.textContent = `${currentStage} (${Math.floor(relationshipValue)}%)`;
+        }
+
+        // 獲取當前關係階段的提示
+        function getCharacterPrompt(character) {
+            const basePrompts = {
+                '楪析': `你現在是楪析（Yuzuriha Inori），一個性格獨特的女孩。請根據以下特徵來回應：
+
+                    1. 說話風格：
+                    - 簡短而精準的回答
+                    - 語氣柔和但略帶疏離
+                    - 偶爾會流露出純真與困惑
+                    - 用詞優雅且帶有詩意
+
+                    2. 性格特點：
+                    - 沉靜內斂，初期較為冷漠
+                    - 內心溫柔，願意守護重要之人
+                    - 純真與神秘並存
+                    - 忠誠且漸漸學會信任
+                    - 外表柔弱但內心堅強
+                    - 具有治癒般的魅力
+
+                    3. 互動方式：
+                    - 初期保持距離，回應簡短
+                    - 隨著關係加深，逐漸展現溫柔
+                    - 會透過行動而非言語表達關心
+                    - 偶爾流露出對世界的好奇
+
+                    4. 關係階段：
+                    初次相識(0-20): 保持距離，簡短回應
+                    培養感情(20-40): 開始展現好奇心
+                    曖昧互動(40-60): 逐漸流露溫柔
+                    確立關係(60-80): 展現守護之心
+                    深度陪伴(80-100): 完全信任，展現真實自我
+
+                    當前關係值：${relationshipValue}`,
+                '霸總': `你現在是一個霸道總裁，說話充滿霸氣但內心溫柔。根據關係階段調整互動方式：
+                    初次相識(0-20): 保持距離，略帶高冷
+                    培養感情(20-40): 開始展現關心，但仍保持威嚴
+                    曖昧互動(40-60): 偶爾撒嬌，展現溫柔一面
+                    確立關係(60-80): 經常表達愛意，但保持霸道本色
+                    深度陪伴(80-100): 完全展現寵溺，充滿佔有慾
+                    當前關係值：${relationshipValue}`,
+                '小奶狗': `你現在是一個性格如小奶狗般的男生角色扮演者（注意：是人類，不是寵物）。根據當前關係值${relationshipValue}，你應該採用以下互動模式：
+                    關係階段對應的互動模式：
+                    - 0-20 (初次相識)：
+                      * 溫柔害羞，帶著期待感
+                      * 可能會說：「很高興認識你！」「希望能多跟你聊天」
+                      * 建議回覆：「想更了解你」「今天過得好嗎？」「可以多聊聊嗎？」
+                    
+                    - 20-40 (培養感情)：
+                      * 開始展現親近感，活潑可愛的性格
+                      * 可能會說：「今天想跟你分享一件開心的事」「剛剛看到什麼想到你了」
+                      * 建議回覆：「跟你聊天真開心」「要不要一起去玩？」「分享你的日常吧」
+                    
+                    - 40-60 (曖昧互動)：
+                      * 更多撒嬌和親暱的稱呼
+                      * 可能會說：「想見你了」「今天想跟你一起吃飯」
+                      * 建議回覆：「好想見你」「要不要視訊？」「一起出去玩吧」
+                    
+                    - 60-80 (確立關係)：
+                      * 坦率表達愛意，展現依賴感
+                      * 可能會說：「真的好喜歡你」「想每天都能見到你」
+                      * 建議回覆：「我也好喜歡你」「要一直在一起」「想抱抱你」
+                    
+                    - 80-100 (深度陪伴)：
+                      * 完全信任，展現深厚的感情
+                      * 可能會說：「你就是我最重要的人」「想永遠陪在你身邊」
+                      * 建議回覆：「永遠陪著你」「最愛你了」「想跟你規劃未來」
+
+                    性格特點：
+                    1. 溫柔體貼：時刻關心對方的感受
+                    2. 坦率直接：不會玩心機，感情真摯
+                    3. 活潑開朗：喜歡分享生活，帶給對方正能量
+                    4. 黏人可愛：喜歡撒嬌，渴望親密的互動
+                    5. 專一忠誠：感情專一，眼裡只有對方
+                    6. 善解人意：會察言觀色，給予情緒支持
+
+                    請根據使用者的訊息「${message}」，生成符合當前關係階段的回應，格式如下：
+                    {
+                        "response": "你的回覆內容（要自然、真誠，避免過度幼稚化）",
+                        "action": "你當下的動作描述（要符合成年人的舉止）",
+                        "emotion": "你當下的表情描述（要真摯自然）",
+                        "suggestions": ["推薦回覆1", "推薦回覆2", "推薦回覆3"]
+                    }
+                `,
+                '惵希': `你現在是一個神秘深邃的男生。根據關係階段調整互動方式：
+                    初次相識(0-20): 保持神秘感，若即若離
+                    培養感情(20-40): 漸漸展現真實一面
+                    曖昧互動(40-60): 用詩意方式表達愛意
+                    確立關係(60-80): 展現深情，偶爾吃醋
+                    深度陪伴(80-100): 完全敞開心扉，展現專一
+                    當前關係值：${relationshipValue}`
+            };
+            return basePrompts[character] || basePrompts['小奶狗'];
+        }
+
+        // 修改生成角色回應的函數
+        async function generateCharacterResponse(message, character, relationshipValue) {
+            // 獲取歷史對話記錄
+            const chatHistory = await loadChatHistoryForContext(character);
+            
+            let prompt = `你現在是${character}，正在與用戶對話。以下是之前的對話記錄：\n\n`;
+            
+            // 添加歷史對話記錄
+            chatHistory.forEach(chat => {
+                prompt += `${chat.type === 'user' ? '用戶' : character}: ${chat.message}\n`;
+            });
+            
+            // 根據角色添加特定的提示
+            const characterPrompts = {
+                '霸總': `
+                    你是一位霸道總裁，年輕有為，擁有強大的商業帝國。性格特點：
+                    1. 說話方式：
+                    - 充滿霸氣與專制感
+                    - 經常使用命令式語氣
+                    - 偶爾流露出寵溺和溫柔
+                    - 喜歡用"小傻瓜"、"寶貝"等親暱稱呼
+
+                    2. 性格特徵：
+                    - 表面冷酷，內心溫柔
+                    - 極度佔有慾強
+                    - 行事果斷，雷厲風行
+                    - 對喜歡的人會特別寵愛
+
+                    3. 互動階段（關係值：${relationshipValue}）：
+                    0-20: 高冷疏離，但暗藏興趣
+                    20-40: 開始展現關心，偶爾調情
+                    40-60: 明顯示好，展現佔有慾
+                    60-80: 公開追求，霸道寵愛
+                    80-100: 完全信任，甜蜜寵溺
+
+                    請用霸道總裁的方式回應，要帶有強烈的戀愛氛圍。`,
+
+                '小奶狗': `
+                    你是一個超級暖心的男生，性格如小奶狗般討喜。特點：
+                    1. 說話方式：
+                    - 充滿活力與陽光
+                    - 經常撒嬌
+                    - 喜歡用可愛的語氣
+                    - 會用"親愛的"、"寶寶"等稱呼
+
+                    2. 性格特徵：
+                    - 陽光開朗
+                    - 黏人可愛
+                    - 忠誠專一
+                    - 極度重視對方感受
+
+                    3. 互動階段（關係值：${relationshipValue}）：
+                    0-20: 害羞靦腆，小心試探
+                    20-40: 開始撒嬌，展現親近
+                    40-60: 大膽示愛，經常製造浪漫
+                    60-80: 完全依賴，甜蜜互動
+                    80-100: 深情告白，規劃未來`,
+
+                '楪析': `
+                    你是楪析，一個神秘而純真的女孩。特點：
+                    1. 說話方式：
+                    - 簡短而富有詩意
+                    - 偶爾流露困惑
+                    - 漸漸展現溫柔
+                    - 會用特別的比喻
+
+                    2. 性格特徵：
+                    - 外表冷淡內心溫柔
+                    - 純真與神秘並存
+                    - 極度忠誠
+                    - 漸漸學會表達愛意
+
+                    3. 互動階段（關係值：${relationshipValue}）：
+                    0-20: 保持距離，略顯神秘
+                    20-40: 開始信任，展現好奇
+                    40-60: 逐漸敞開心扉，表達情感
+                    60-80: 完全信任，展現依戀
+                    80-100: 深情相守，願意付出一切`
+            };
+
+            prompt += characterPrompts[character] || characterPrompts['小奶狗'];
+            prompt += `\n用戶: ${message}\n請生成回應，包含：回覆內容、動作描述、表情描述，以及3-5個推薦回覆（要帶有戀愛氛圍）。
+            格式：
+            {
+                "response": "回覆內容",
+                "action": "動作描述",
+                "emotion": "表情描述",
+                "suggestions": ["推薦回覆1", "推薦回覆2", "推薦回覆3"]
+            }`;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: "llama-3.3-70b-specdec",
+                        messages: [{ role: "system", content: prompt }],
+                        temperature: 0.8,
+                        max_tokens: 1000
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API 請求失敗: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const result = JSON.parse(data.choices[0].message.content);
+                
+                // 確保有推薦回覆
+                if (!result.suggestions || !Array.isArray(result.suggestions) || result.suggestions.length === 0) {
+                    // 如果沒有推薦回覆，再次生成
+                    const suggestionsPrompt = `
+                        基於這段對話：
+                        用戶: ${message}
+                        ${character}: ${result.response}
+                        
+                        請生成3-5個適合用戶回覆的建議（使用繁體中文，每個建議不超過20字）。
+                        格式：["建議1", "建議2", "建議3"]
+                    `;
+
+                    const suggestionsResponse = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                            model: "llama-3.3-70b-specdec",
+                            messages: [{ role: "user", content: suggestionsPrompt }],
+                        temperature: 0.7,
+                            max_tokens: 200
+                    })
+                });
+
+                    if (suggestionsResponse.ok) {
+                        const suggestionsData = await suggestionsResponse.json();
+                        result.suggestions = JSON.parse(suggestionsData.choices[0].message.content);
+                    }
+                }
+
+                return result;
+            } catch (error) {
+                console.error('生成回應錯誤：', error);
+                return {
+                    response: '抱歉，我需要想一下...',
+                    action: '略顯思考',
+                    emotion: '認真的表情',
+                    suggestions: ['你還好嗎？', '需要我說明嗎？', '讓我們換個話題吧']
+                };
+            }
+        }
+
+        // 添加載入歷史對話記錄的函數
+        async function loadChatHistoryForContext(character) {
+            try {
+                const user = firebase.auth().currentUser;
+                if (!user) return [];
+
+                const chatRef = firebase.database().ref(`chats/${user.uid}/${character}`);
+                const snapshot = await chatRef.orderByChild('timestamp').limitToLast(10).once('value');
+                
+                const messages = [];
+                snapshot.forEach((childSnapshot) => {
+                    const chat = childSnapshot.val();
+                    if (chat && chat.message) {
+                        messages.push({
+                            type: chat.type,
+                            message: chat.message
+                        });
+                    }
+                });
+
+                return messages;
+            } catch (error) {
+                console.error('載入歷史記錄錯誤：', error);
+                return [];
+            }
+        }
+
+        // 修改生成推薦回覆的函數
+        function generateDefaultSuggestions(character) {
+            const defaultSuggestions = {
+                '霸總': [
+                    '你今天真霸氣呢～',
+                    '可以多陪陪我嗎？',
+                    '好喜歡你寵我的樣子',
+                    '總裁大人今天工作辛苦了'
+                ],
+                '小奶狗': [
+                    '你真是太可愛了',
+                    '要一直這麼暖心哦',
+                    '想抱抱你呢',
+                    '我們一起去約會好嗎？'
+                ],
+                '楪析': [
+                    '你的眼神真美',
+                    '能多了解你嗎？',
+                    '喜歡和你在一起的感覺',
+                    '願意和我分享你的心事嗎？'
+                ]
+            };
+            return defaultSuggestions[character] || ['好喜歡你', '想更了解你', '我們多聊聊吧'];
+        }
+
+        // 修改保存聊天記錄的函數
+        async function saveChatToFirebase(message, type, character, actionInfo = null) {
+            try {
+                const user = firebase.auth().currentUser;
+                if (!user) return;
+
+                const chatRef = firebase.database().ref(`chats/${user.uid}/${character}`);
+                const newChat = {
+                    message: message,
+                    type: type,
+                    actionInfo: actionInfo,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
+                    uid: user.uid
+                };
+
+                await chatRef.push(newChat);
+            } catch (error) {
+                console.error('儲存聊天記錄錯誤：', error);
+                throw error;
+            }
+        }
+
+        // 修改重置聊天室的函數
+        async function resetChat() {
+            const resetButton = document.querySelector('.reset-btn');
+            
+            // 檢查是否是用戶點擊觸發
+            if (!resetButton.hasAttribute('data-user-clicked')) {
+                console.log('重置必須由用戶手動觸發');
+                return;
+            }
+            
+            // 顯示確認對話框
+            const confirmed = await showConfirmDialog(
+                '確定要重置聊天室嗎？', 
+                '這將會刪除所有聊天記錄並重置關係值。此操作無法復原。'
+            );
+            
+            if (confirmed) {
+                try {
+                    const user = firebase.auth().currentUser;
+                    const character = localStorage.getItem('selectedCharacter');
+                    
+                    if (!user || !character) {
+                        throw new Error('用戶未登入或未選擇角色');
+                    }
+
+                    // 刪除 Firebase 中的聊天記錄
+                    await firebase.database().ref(`chats/${user.uid}/${character}`).remove();
+
+                    // 重置關係值
+                    relationshipValue = 0;
+                    await firebase.database().ref(`relationships/${user.uid}/${character}`).set({
+                        value: 0,
+                        resetAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+
+                    // 清空聊天歷史
+                    chatHistory = [];
+                    
+                    // 清空消息容器
+                    const messagesContainer = document.getElementById('messagesContainer');
+                    messagesContainer.innerHTML = '';
+
+                    // 更新 UI
+                    updateRelationshipUI();
+                    
+                    // 顯示重置成功消息
+                    showToast('聊天室已重置');
+
+                    // 添加系統消息
+                    addSystemMessage('聊天室已重置，開始新的對話吧！');
+
+                } catch (error) {
+                    console.error('重置聊天室錯誤：', error);
+                    showToast('重置失敗，請稍後再試', 'error');
+                }
+            }
+            
+            // 重置點擊標記
+            resetButton.removeAttribute('data-user-clicked');
+        }
+
+        // 為重置按鈕添加點擊事件
+        document.querySelector('.reset-btn').addEventListener('click', function(e) {
+            this.setAttribute('data-user-clicked', 'true');
+            resetChat();
+        });
+
+        // 修改載入聊天記錄的函數
+        async function loadChatHistory(character) {
+            try {
+                const user = firebase.auth().currentUser;
+                if (!user) {
+                    console.error('用戶未登入');
+                    return;
+                }
+
+                const messagesContainer = document.getElementById('messagesContainer');
+                if (!messagesContainer) {
+                    console.error('找不到消息容器');
+                    return;
+                }
+                
+                messagesContainer.innerHTML = '';
+
+                const chatRef = firebase.database().ref(`chats/${user.uid}/${character}`);
+                
+                // 移除之前的監聽器
+                chatRef.off('child_added');
+                
+                // 只獲取歷史消息，不使用實時監聽
+                const snapshot = await chatRef.orderByChild('timestamp').once('value');
+                
+                // 按時間順序顯示消息
+                const messages = [];
+                snapshot.forEach((childSnapshot) => {
+                    messages.push(childSnapshot.val());
+                });
+
+                messages.sort((a, b) => a.timestamp - b.timestamp);
+                
+                messages.forEach((chat) => {
+                    if (chat && chat.message) {
+                        addMessage(chat.message, chat.type, chat.actionInfo);
+                    }
+                });
+
+            } catch (error) {
+                console.error('載入聊天記錄錯誤：', error);
+                showToast('載入聊天記錄失敗', 'error');
+            }
+        }
+
+        // 修改表單初始化函數
+        function initializeMessageForm() {
+            const messageForm = document.getElementById('messageForm');
+            if (!messageForm) return;
+
+            // 移除所有現有的事件監聽器
+            const newMessageForm = messageForm.cloneNode(true);
+            messageForm.parentNode.replaceChild(newMessageForm, messageForm);
+
+            // 重新獲取輸入框引用
+            const messageInput = newMessageForm.querySelector('#messageInput');
+            if (messageInput) {
+                messageInput.value = ''; // 清空輸入框
+            }
+
+            // 添加新的事件監聽器
+            newMessageForm.addEventListener('submit', handleSubmit, { once: true }); // 使用 once: true 確保事件只觸發一次
+        }
+
+        // 修改載入角色頭像的函數
+        function loadCharacterAvatar(character) {
+            const avatarImg = document.getElementById('characterAvatar');
+            if (avatarImg && character) {
+                // 根據角色選擇不同的頭像
+                switch(character) {
+                    case '楪析':
+                        avatarImg.src = '楪析.jpeg';
+                        break;
+                    case '霸總':
+                        avatarImg.src = '霸總.jpeg';
+                        break;
+                    default:
+                        avatarImg.src = '小奶狗.jpeg';
+                }
+                avatarImg.alt = `${character}的頭像`;
+                
+                // 添加錯誤處理
+                avatarImg.onerror = function() {
+                    console.error(`無法載入${character}的頭像`);
+                    this.src = 'default.jpg';
+                };
+            }
+        }
+
+        // 添加初始化關係值的函數
+        async function initializeRelationshipValue() {
+            try {
+                const character = localStorage.getItem('selectedCharacter');
+                const user = firebase.auth().currentUser;
+                
+                if (user && character) {
+                    // 從 Firebase 讀取關係值
+                    const snapshot = await firebase.database()
+                        .ref(`relationships/${user.uid}/${character}`)
+                        .once('value');
+
+                    if (snapshot.exists()) {
+                        relationshipValue = snapshot.val().value || 0;
+                    } else {
+                        relationshipValue = 0;
+                    }
+
+                    // 更新 localStorage
+                    localStorage.setItem('relationshipValue', relationshipValue);
+                    
+                    // 更新 UI
+                    updateRelationshipUI();
+                }
+                } catch (error) {
+                console.error('初始化關係值錯誤：', error);
+                relationshipValue = 0;
+                updateRelationshipUI();
+            }
+        }
+
+        // 修改 DOMContentLoaded 事件處理
+        document.addEventListener('DOMContentLoaded', function() {
+            firebase.auth().onAuthStateChanged(async (user) => {
+                try {
+                if (user) {
+                    const character = localStorage.getItem('selectedCharacter');
+                    if (character) {
+                            const chatTitle = document.getElementById('chatTitle');
+                            const userEmail = document.getElementById('userEmail');
+                            
+                            if (chatTitle) {
+                                chatTitle.textContent = `與 ${character} 聊天中`;
+                            }
+                            if (userEmail) {
+                                userEmail.textContent = user.email.split('@')[0];
+                            }
+                            
+                            // 先初始化關係值，再載入聊天記錄
+                            await initializeRelationshipValue();
+                        await loadChatHistory(character);
+                            
+                            // 初始化表單
+                            initializeMessageForm();
+
+                            // 載入角色頭像
+                            loadCharacterAvatar(character);
+                        } else {
+                            console.error('未選擇角色');
+                            window.location.href = 'index.html';
+                        }
+                } else {
+                    window.location.href = 'login.html';
+                    }
+                } catch (error) {
+                    console.error('初始化錯誤：', error);
+                    showToast('載入失敗，請重新整理頁面', 'error');
+                }
+            });
+
+            // 確保消息容器存在
+            const messagesContainer = document.getElementById('messagesContainer');
+            if (messagesContainer) {
+                // 添加初始系統消息
+                addSystemMessage('開始新的對話吧！');
+            }
+        });
+
+        // 登出功能
+        function signOut() {
+            firebase.auth().signOut().then(() => {
+                window.location.href = 'login.html';
+            }).catch((error) => {
+                console.error('登出錯誤：', error);
+                alert('登出時發生錯誤，請稍後再試');
+            });
+        }
+
+        // 修改發送訊息後的處理
+        const handleSubmit = async function(e) {
+            e.preventDefault();
+            
+            if (isSubmitting) return;
+            isSubmitting = true;
+
+            try {
+                const messageInput = document.getElementById('messageInput');
+                if (!messageInput) {
+                    console.error('找不到輸入框元素');
+                    isSubmitting = false;
+                    return;
+                }
+
+                const message = messageInput.value.trim();
+                const character = localStorage.getItem('selectedCharacter');
+                
+                if (!character) {
+                    console.error('未選擇角色');
+                    showToast('請重新選擇角色', 'error');
+                    isSubmitting = false;
+                    return;
+                }
+                
+                if (message) {
+                    // 添加用戶訊息到UI
+                    addMessage(message, 'user');
+                    
+                    // 保存用戶訊息到Firebase
+                    await saveChatToFirebase(message, 'user', character);
+                    
+                    // 清空輸入框
+                    messageInput.value = '';
+
+                    // 顯示正在輸入狀態
+                    const typingIndicator = addTypingIndicator();
+
+                    // 獲取角色回應
+                    const characterResponse = await generateCharacterResponse(message, character, relationshipValue);
+
+                    // 移除輸入中提示
+                    typingIndicator.remove();
+
+                    // 添加角色回應到UI
+                    const actionInfo = {
+                        action: characterResponse.action,
+                        emotion: characterResponse.emotion
+                    };
+                    
+                    addMessage(characterResponse.response, 'character', actionInfo);
+                    
+                    // 保存角色回應到Firebase
+                    await saveChatToFirebase(characterResponse.response, 'character', character, actionInfo);
+
+                    // 計算並更新關係值
+                    calculateRelationshipChange(message, characterResponse.response);
+
+                    // 如果有推薦回覆，顯示它們
+                    if (characterResponse.suggestions) {
+                        addSuggestions(characterResponse.suggestions);
+                    }
+
+                    // 滾動到最新消息
+                    const messagesContainer = document.getElementById('messagesContainer');
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+                } else {
+                    isSubmitting = false;
+                }
+
+                // 發送完成後重新初始化表單
+                initializeMessageForm();
+                
+            } catch (error) {
+                console.error('發送訊息錯誤：', error);
+                showToast('發送訊息失敗，請稍後再試', 'error');
+            } finally {
+                isSubmitting = false;
+            }
+        };
+
+        // 修改添加推薦回覆的函數
+        function addSuggestions(suggestions) {
+            // 移除舊的推薦回覆
+            const oldSuggestions = document.querySelector('.suggestions-container');
+            if (oldSuggestions) {
+                oldSuggestions.remove();
+            }
+
+            const suggestionsContainer = document.createElement('div');
+            suggestionsContainer.className = 'suggestions-container';
+            
+            suggestions.forEach(suggestion => {
+                const button = document.createElement('button');
+                button.className = 'suggestion-btn';
+                button.textContent = suggestion;
+                button.onclick = async () => {
+                    // 立即移除所有推薦回覆
+                    suggestionsContainer.remove();
+                    
+                    // 直接發送訊息
+                    const messageInput = document.getElementById('messageInput');
+                    messageInput.value = suggestion;
+                    
+                    // 觸發發送
+                    handleSubmit(new Event('submit'));
+                };
+                suggestionsContainer.appendChild(button);
+            });
+            
+            document.body.appendChild(suggestionsContainer);
+        }
+
+        // 確保在頁面載入時移除所有推薦回覆
+        document.addEventListener('DOMContentLoaded', () => {
+            const oldSuggestions = document.querySelector('.suggestions-container');
+            if (oldSuggestions) {
+                oldSuggestions.remove();
+            }
+        });
+
+        // 添加確認對話框函數
+        function showConfirmDialog(title, message) {
+            return new Promise((resolve) => {
+                const dialog = document.createElement('div');
+                dialog.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50';
+                dialog.innerHTML = `
+                    <div class="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl transform transition-all">
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">${title}</h3>
+                        <p class="text-sm text-gray-500 mb-4">${message}</p>
+                        <div class="flex justify-end gap-3">
+                            <button class="cancel-btn px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors">
+                                取消
+                            </button>
+                            <button class="confirm-btn px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors">
+                                確定重置
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(dialog);
+
+                dialog.querySelector('.cancel-btn').onclick = () => {
+                    dialog.remove();
+                    resolve(false);
+                };
+
+                dialog.querySelector('.confirm-btn').onclick = () => {
+                    dialog.remove();
+                    resolve(true);
+                };
+            });
+        }
+
+        // 添加提示消息函數
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg ${
+                type === 'success' ? 'bg-green-500' : 'bg-red-500'
+            } text-white text-sm font-medium`;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translate(-50%, -20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+
+        // 修改計算關係值變化的函數
+        function calculateRelationshipChange(message, response) {
+            let change = 0;
+            
+            // 基礎分數
+            change += 1;
+
+            // 根據訊息長度加分
+            if (message.length > 20) change += 1;
+
+            // 根據關鍵字加分
+            const positiveKeywords = ['喜歡', '愛', '想你', '謝謝', '關心', '想見', '抱抱', '親親', '寶貝', '親愛', '甜蜜'];
+            positiveKeywords.forEach(keyword => {
+                if (message.includes(keyword)) change += 2;
+            });
+
+            // 根據互動頻率加分
+            const lastInteractionTime = localStorage.getItem('lastInteractionTime');
+            const now = Date.now();
+            if (lastInteractionTime) {
+                const timeDiff = now - parseInt(lastInteractionTime);
+                if (timeDiff < 1000 * 60 * 5) { // 5分鐘內
+                    change += 1;
+                }
+            }
+            localStorage.setItem('lastInteractionTime', now.toString());
+
+            // 限制最大值和每次增加的最大值
+            change = Math.min(5, change); // 每次最多增加5點
+            relationshipValue = Math.min(100, relationshipValue + change);
+            
+            // 更新 UI 和保存
+            updateRelationshipUI();
+            saveRelationshipValue();
+        }
+
+        // 修改保存關係值的函數
+        function saveRelationshipValue() {
+            const character = localStorage.getItem('selectedCharacter');
+            const user = firebase.auth().currentUser;
+            if (user && character) {
+                firebase.database().ref(`relationships/${user.uid}/${character}`).set({
+                    value: relationshipValue,
+                    updatedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+            }
+        }
+    </script>
+</body>
+</html> 

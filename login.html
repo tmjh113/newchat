@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登入 - 角色聊天</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- 更新 Firebase SDK 引入 -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .bg-gradient-custom {
+                background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 50%, #EC4899 100%);
+            }
+            .input-focus {
+                @apply focus:ring-2 focus:ring-purple-400 focus:border-purple-400;
+            }
+            @keyframes float {
+                0% { transform: translateY(0px); }
+                50% { transform: translateY(-10px); }
+                100% { transform: translateY(0px); }
+            }
+            .float-animation {
+                animation: float 4s ease-in-out infinite;
+            }
+            .glass-effect {
+                backdrop-filter: blur(16px);
+                background: rgba(255, 255, 255, 0.1);
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-white font-['Noto_Sans_TC']">
+    <!-- 背景裝飾 -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <!-- 柔和的網格背景 -->
+        <div class="absolute inset-0" style="background-image: radial-gradient(#E5E7EB 1px, transparent 1px); background-size: 24px 24px;"></div>
+        
+        <!-- 柔和的漸層光暈 -->
+        <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-purple-100/30 to-pink-100/30 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-blue-100/30 to-indigo-100/30 rounded-full blur-3xl"></div>
+    </div>
+
+    <!-- 主要內容 -->
+    <div class="relative min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md">
+            <!-- 登入卡片 -->
+            <div class="bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-3xl shadow-xl border border-gray-100">
+                <!-- Logo 或標題區域 -->
+                <div class="text-center mb-8">
+                    <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                        歡迎回來
+                    </h1>
+                    <p class="text-gray-600 text-lg">
+                        登入以開始你的聊天之旅
+                    </p>
+                </div>
+
+                <!-- 登入表單 -->
+                <form id="loginForm" class="space-y-6">
+                    <!-- 用戶名輸入框 -->
+                    <div class="space-y-2">
+                        <label for="username" class="block text-sm font-medium text-gray-700 ml-1">
+                            用戶名稱
+                        </label>
+                        <div class="relative group">
+                            <input id="username" type="text" required 
+                                class="w-full px-5 py-3.5 bg-gray-50/50 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400
+                                       focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500
+                                       transition-all duration-300 group-hover:bg-gray-50"
+                                placeholder="輸入用戶名稱">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">@tmjh.pro</span>
+                        </div>
+                    </div>
+
+                    <!-- 密碼輸入框 -->
+                    <div class="space-y-2">
+                        <label for="password" class="block text-sm font-medium text-gray-700 ml-1">
+                            密碼
+                        </label>
+                        <input id="password" type="password" required 
+                            class="w-full px-5 py-3.5 bg-gray-50/50 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400
+                                   focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500
+                                   transition-all duration-300 hover:bg-gray-50"
+                            placeholder="輸入密碼">
+                    </div>
+
+                    <!-- 登入按鈕 -->
+                    <button type="submit" 
+                        class="w-full mt-8 py-3.5 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium
+                               hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2
+                               transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0
+                               shadow-lg shadow-purple-500/25">
+                        登入
+                    </button>
+                </form>
+            </div>
+
+            <!-- 底部裝飾 -->
+            <div class="mt-8 text-center">
+                <p class="text-gray-500 text-sm">
+                    © 2024 TMJH Chat. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 等待 DOM 和 Firebase SDK 完全加載
+        document.addEventListener('DOMContentLoaded', function() {
+            // Firebase 配置
+            const firebaseConfig = {
+                apiKey: "AIzaSyCRG8gbhbEm9jsMtCucF_h9YknBc4WtD40",
+                authDomain: "tmjhpro.firebaseapp.com",
+                databaseURL: "https://tmjhpro-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "tmjhpro",
+                storageBucket: "tmjhpro.firebasestorage.app",
+                messagingSenderId: "602310027605",
+                appId: "1:602310027605:web:6a2d5aa3ff2a8f1a7aa7dc",
+                measurementId: "G-CRPMJJ8KZP"
+            };
+
+            // 初始化 Firebase
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+
+            // 檢查登入狀態
+            firebase.auth().onAuthStateChanged((user) => {
+                if (user) {
+                    window.location.href = 'index.html';
+                }
+            });
+
+            // 表單提交處理
+            document.getElementById('loginForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const email = `${username}@tmjh.pro`;
+
+                firebase.auth().signInWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        window.location.href = 'index.html';
+                    })
+                    .catch((error) => {
+                        let errorMessage;
+                        switch (error.code) {
+                            case 'auth/user-not-found':
+                                errorMessage = '找不到該用戶';
+                                break;
+                            case 'auth/wrong-password':
+                                errorMessage = '密碼錯誤';
+                                break;
+                            case 'auth/invalid-email':
+                                errorMessage = '無效的用戶名稱';
+                                break;
+                            default:
+                                errorMessage = error.message;
+                        }
+                        alert('登入失敗：' + errorMessage);
+                    });
+            });
+        });
+    </script>
+
+    <style>
+        /* 平滑滾動 */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* 輸入框自動填充樣式 */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+            -webkit-box-shadow: 0 0 0px 1000px #F9FAFB inset;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
+        /* 禁用 iOS 輸入框樣式 */
+        input {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        /* 漸變文字動畫 */
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .text-gradient {
+            background-size: 200% auto;
+            animation: gradient 4s linear infinite;
+        }
+
+        /* 陰影過渡效果 */
+        .shadow-transition {
+            transition: box-shadow 0.3s ease;
+        }
+
+        /* 移動端優化 */
+        @media (max-width: 640px) {
+            .rounded-3xl {
+                border-radius: 1.5rem;
+            }
+        }
+    </style>
+</body>
+</html>
