@@ -42,54 +42,6 @@
                 font-size: 12px;
                 color: #6B7280;
             }
-            .suggestions-container {
-                position: fixed;
-                bottom: 80px;
-                left: 0;
-                right: 0;
-                padding: 8px 12px;
-                background: rgba(255,255,255,0.98);
-                backdrop-filter: blur(10px);
-                border-top: 1px solid rgba(0,0,0,0.1);
-                z-index: 1000;
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-                gap: 8px;
-                max-height: 160px;
-                overflow-y: auto;
-                box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
-                -webkit-overflow-scrolling: touch;
-            }
-            .suggestion-btn {
-                width: 100%;
-                height: 100%;
-                background: linear-gradient(135deg, #f0f4ff 0%, #e5e9ff 100%);
-                color: #4f46e5;
-                padding: 12px 16px;
-                border-radius: 12px;
-                font-size: 0.875rem;
-                font-weight: 500;
-                border: 1px solid rgba(79, 70, 229, 0.2);
-                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-                transition: all 0.2s ease;
-                white-space: normal;
-                text-align: center;
-                min-height: 44px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                line-height: 1.3;
-                cursor: pointer;
-                -webkit-tap-highlight-color: transparent;
-                touch-action: manipulation;
-                user-select: none;
-                -webkit-user-select: none;
-            }
-            .suggestion-btn:active {
-                transform: scale(0.98);
-                background: linear-gradient(135deg, #e5e9ff 0%, #dce0ff 100%);
-                box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-            }
             .character-avatar {
                 width: 48px;
                 height: 48px;
@@ -282,6 +234,61 @@
                     font-size: 14px;
                 }
             }
+
+            /* 新增動作描述樣式 */
+            .action-description {
+                @apply text-purple-600 text-sm pl-3 ml-2 border-l-2 border-purple-200;
+                position: relative;
+                animation: fadeInLeft 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            }
+            .action-description::before {
+                content: "✦";
+                @apply text-purple-400 mr-2 font-light;
+                position: absolute;
+                left: -0.8em;
+                top: 0.1em;
+            }
+            /* 強化場景描述 */
+            .scene-description {
+                @apply text-gray-600 text-sm italic my-4 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg;
+                border-left: 4px solid #8B5CF6;
+                box-shadow: 0 2px 8px rgba(139, 92, 246, 0.1);
+                position: relative;
+            }
+            .scene-description::before {
+                content: "🜲";
+                @apply text-purple-300 absolute -left-4 top-2 text-xl;
+            }
+            /* 特殊動作容器 */
+            .special-actions {
+                @apply mt-2 space-y-1;
+            }
+            /* 單個動作樣式 */
+            .action-item {
+                @apply flex items-center text-sm text-purple-600 pl-3;
+                animation: slideIn 0.3s ease-out;
+            }
+            .action-icon {
+                @apply w-4 h-4 mr-2 flex-shrink-0;
+            }
+            /* 不同動作類型的圖示 */
+            .action-touch .action-icon {
+                background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>');
+            }
+            .action-emotion .action-icon {
+                background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>');
+            }
+            /* 動畫效果 */
+            @keyframes slideIn {
+                from {
+                    opacity: 0;
+                    transform: translateX(10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateX(0);
+                }
+            }
         }
     </style>
 </head>
@@ -382,6 +389,38 @@
                 </div>`;
             }
             
+            // 新增消息解析邏輯
+            const parsedMessage = parseMessageContent(message);
+            
+            // 如果有動作信息，添加特殊動作區塊
+            let actionContent = '';
+            if (actionInfo) {
+                actionContent = `
+                    <div class="special-actions">
+                        <div class="action-item action-touch">
+                            <span class="action-icon"></span>
+                            ${actionInfo.action}
+                        </div>
+                        <div class="action-item action-emotion">
+                            <span class="action-icon"></span>
+                            ${actionInfo.emotion}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // 修改消息內容結構
+            messageContent = `
+                ${parsedMessage.parsedScene ? `<div class="scene-description">${parsedMessage.parsedScene}</div>` : ''}
+                ${parsedMessage.parsedMessage ? `<div class="message-text">${parsedMessage.parsedMessage}</div>` : ''}
+                ${parsedMessage.parsedActions.map(a => `
+                    <div class="action-description">
+                        ${a}
+                    </div>
+                `).join('')}
+                ${actionContent}
+            `;
+            
             // 添加頭像和消息氣泡的 HTML
             if (type === 'character') {
                 const character = localStorage.getItem('selectedCharacter');
@@ -417,6 +456,40 @@
             
             messagesContainer.appendChild(messageDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // 修改消息解析函數
+        function parseMessageContent(message) {
+            // 增強場景描述解析
+            const sceneRegex = /\(([^)]+)\)/g;  // 簡化匹配模式
+            let parsedScene = '';
+            const sceneMatches = [];
+            let match;
+            while ((match = sceneRegex.exec(message)) !== null) {
+                sceneMatches.push(match[1]);
+            }
+            if (sceneMatches.length > 0) {
+                parsedScene = sceneMatches.join(' ');
+                message = message.replace(sceneRegex, ''); 
+            }
+
+            // 強化動作解析
+            const actionRegex = /\*([^*]+)\*/g;
+            const parsedActions = [];
+            message = message.replace(actionRegex, (_, p1) => {
+                parsedActions.push(p1
+                    .replace(/[。，]/g, '') // 移除標點
+                    .replace(/(輕輕|微微)/g, '') // 精簡副詞
+                    .trim()
+                );
+                return '';
+            });
+
+            return {
+                parsedMessage: message.trim(),
+                parsedActions,
+                parsedScene
+            };
         }
 
         // 添加系統消息函數
@@ -506,191 +579,33 @@
             level.textContent = `${currentStage} (${Math.floor(relationshipValue)}%)`;
         }
 
-        // 獲取當前關係階段的提示
-        function getCharacterPrompt(character) {
-            const basePrompts = {
-                '楪析': `你現在是楪析（Yuzuriha Inori），一個性格獨特的女孩。請根據以下特徵來回應：
-
-                    1. 說話風格：
-                    - 簡短而精準的回答
-                    - 語氣柔和但略帶疏離
-                    - 偶爾會流露出純真與困惑
-                    - 用詞優雅且帶有詩意
-
-                    2. 性格特點：
-                    - 沉靜內斂，初期較為冷漠
-                    - 內心溫柔，願意守護重要之人
-                    - 純真與神秘並存
-                    - 忠誠且漸漸學會信任
-                    - 外表柔弱但內心堅強
-                    - 具有治癒般的魅力
-
-                    3. 互動方式：
-                    - 初期保持距離，回應簡短
-                    - 隨著關係加深，逐漸展現溫柔
-                    - 會透過行動而非言語表達關心
-                    - 偶爾流露出對世界的好奇
-
-                    4. 關係階段：
-                    初次相識(0-20): 保持距離，簡短回應
-                    培養感情(20-40): 開始展現好奇心
-                    曖昧互動(40-60): 逐漸流露溫柔
-                    確立關係(60-80): 展現守護之心
-                    深度陪伴(80-100): 完全信任，展現真實自我
-
-                    當前關係值：${relationshipValue}`,
-                '霸總': `你現在是一個霸道總裁，說話充滿霸氣但內心溫柔。根據關係階段調整互動方式：
-                    初次相識(0-20): 保持距離，略帶高冷
-                    培養感情(20-40): 開始展現關心，但仍保持威嚴
-                    曖昧互動(40-60): 偶爾撒嬌，展現溫柔一面
-                    確立關係(60-80): 經常表達愛意，但保持霸道本色
-                    深度陪伴(80-100): 完全展現寵溺，充滿佔有慾
-                    當前關係值：${relationshipValue}`,
-                '小奶狗': `你現在是一個性格如小奶狗般的男生角色扮演者（注意：是人類，不是寵物）。根據當前關係值${relationshipValue}，你應該採用以下互動模式：
-                    關係階段對應的互動模式：
-                    - 0-20 (初次相識)：
-                      * 溫柔害羞，帶著期待感
-                      * 可能會說：「很高興認識你！」「希望能多跟你聊天」
-                      * 建議回覆：「想更了解你」「今天過得好嗎？」「可以多聊聊嗎？」
-                    
-                    - 20-40 (培養感情)：
-                      * 開始展現親近感，活潑可愛的性格
-                      * 可能會說：「今天想跟你分享一件開心的事」「剛剛看到什麼想到你了」
-                      * 建議回覆：「跟你聊天真開心」「要不要一起去玩？」「分享你的日常吧」
-                    
-                    - 40-60 (曖昧互動)：
-                      * 更多撒嬌和親暱的稱呼
-                      * 可能會說：「想見你了」「今天想跟你一起吃飯」
-                      * 建議回覆：「好想見你」「要不要視訊？」「一起出去玩吧」
-                    
-                    - 60-80 (確立關係)：
-                      * 坦率表達愛意，展現依賴感
-                      * 可能會說：「真的好喜歡你」「想每天都能見到你」
-                      * 建議回覆：「我也好喜歡你」「要一直在一起」「想抱抱你」
-                    
-                    - 80-100 (深度陪伴)：
-                      * 完全信任，展現深厚的感情
-                      * 可能會說：「你就是我最重要的人」「想永遠陪在你身邊」
-                      * 建議回覆：「永遠陪著你」「最愛你了」「想跟你規劃未來」
-
-                    性格特點：
-                    1. 溫柔體貼：時刻關心對方的感受
-                    2. 坦率直接：不會玩心機，感情真摯
-                    3. 活潑開朗：喜歡分享生活，帶給對方正能量
-                    4. 黏人可愛：喜歡撒嬌，渴望親密的互動
-                    5. 專一忠誠：感情專一，眼裡只有對方
-                    6. 善解人意：會察言觀色，給予情緒支持
-
-                    請根據使用者的訊息「${message}」，生成符合當前關係階段的回應，格式如下：
-                    {
-                        "response": "你的回覆內容（要自然、真誠，避免過度幼稚化）",
-                        "action": "你當下的動作描述（要符合成年人的舉止）",
-                        "emotion": "你當下的表情描述（要真摯自然）",
-                        "suggestions": ["推薦回覆1", "推薦回覆2", "推薦回覆3"]
-                    }
-                `,
-                '惵希': `你現在是一個神秘深邃的男生。根據關係階段調整互動方式：
-                    初次相識(0-20): 保持神秘感，若即若離
-                    培養感情(20-40): 漸漸展現真實一面
-                    曖昧互動(40-60): 用詩意方式表達愛意
-                    確立關係(60-80): 展現深情，偶爾吃醋
-                    深度陪伴(80-100): 完全敞開心扉，展現專一
-                    當前關係值：${relationshipValue}`
-            };
-            return basePrompts[character] || basePrompts['小奶狗'];
-        }
-
         // 修改生成角色回應的函數
         async function generateCharacterResponse(message, character, relationshipValue) {
             const chatHistory = await loadChatHistoryForContext(character);
             
-            // 構建更自然的提示詞
-            let prompt = `你是${character}，正在與用戶進行對話。請以下列方式回應：
+            // 構建更簡潔的提示詞
+            const prompt = `你是真实的${character}，请遵循以下对话原则：
+1. 必须直接回应用户最后一条消息的核心内容
+2. 发现用户问题中的隐藏需求（如：说"好累"可能是求安慰）
+3. 延续前3条对话的上下文逻辑
+4. 当用户提及以下内容时需特别处理：
+   - 角色背景相关 → 用已知信息回应
+   - 未提及的新信息 → 合理推测后回应
+   - 矛盾点 → 温柔追问澄清
 
-            1. 記住你的身份和性格特徵
-            2. 保持對話的連貫性和邏輯性
-            3. 根據用戶的情緒和語氣調整回應
-            4. 展現真實的情感和個性
-            5. 適當引用之前的對話內容
-            6. 避免重複和模板化的回答
-            7. 關係值：${relationshipValue}（影響親密度表現）
+${getCharacterPersonality(character, relationshipValue)}
 
-            最近的對話記錄：
-            `;
-            
-            // 添加最近的對話記錄（最多5條）
-            const recentChats = chatHistory.slice(-5);
-            recentChats.forEach(chat => {
-                prompt += `${chat.type === 'user' ? '用戶' : character}: ${chat.message}\n`;
-            });
-            
-            // 根據角色添加特定的個性提示
-            const personalityPrompts = {
-                '楪析': `
-                    性格特點：
-                    - 外表冷淡但內心溫柔
-                    - 說話簡短但富有深意
-                    - 對信任的人展現柔軟一面
-                    - 偶爾流露困惑與好奇
-                    - 極度重視承諾和信任
-                    
-                    當前關係階段（${relationshipValue}%）：
-                    - 0-20: 保持距離，簡短回應
-                    - 20-40: 開始展現好奇心
-                    - 40-60: 偶爾流露溫柔
-                    - 60-80: 願意分享內心想法
-                    - 80-100: 完全信任，展現真實自我
-                    
-                    請根據這些特點，對用戶的這句話回應：「${message}」
-                    回應要包含：
-                    1. 對話內容（保持角色特色）
-                    2. 細微的情感變化
-                    3. 適當的肢體動作
-                    4. 符合當前關係階段的互動方式`,
-                
-                '霸總': `
-                    性格特點：
-                    - 表面強勢，內心溫柔
-                    - 說話直接但不失風度
-                    - 對在意的人特別寵溺
-                    - 行事果斷，不拖泥帶水
-                    - 偶爾展現佔有慾
-                    
-                    當前關係階段（${relationshipValue}%）：
-                    - 0-20: 保持距離，展現威嚴
-                    - 20-40: 開始關注對方
-                    - 40-60: 展現溫柔一面
-                    - 60-80: 主動表達愛意
-                    - 80-100: 完全放下身段，寵溺至上
-                    
-                    請根據這些特點回應用戶的話：「${message}」`,
-                
-                '小奶狗': `
-                    性格特點：
-                    - 陽光活潑，充滿正能量
-                    - 真誠直率，不善掩飾
-                    - 對喜歡的人特別黏人
-                    - 容易害羞但很勇敢
-                    - 重視承諾和信任
-                    
-                    當前關係階段（${relationshipValue}%）：
-                    - 0-20: 害羞但友好
-                    - 20-40: 展現活力與關心
-                    - 40-60: 開始撒嬌示好
-                    - 60-80: 大膽表達愛意
-                    - 80-100: 完全依賴，甜蜜互動
-                    
-                    請根據這些特點回應用戶的話：「${message}」`
-            };
+近期对话记忆：
+${chatHistory.slice(-5).map((c, i) => {
+    const prefix = i === chatHistory.length-1 ? '[最新] ' : '';
+    return `${prefix}${c.type === 'user' ? '用户' : character}: ${c.message}`
+}).join('\n')}
 
-            prompt += personalityPrompts[character] || personalityPrompts['小奶狗'];
-            prompt += `\n請生成自然、符合角色的回應，格式如下：
-            {
-                "response": "回應內容",
-                "action": "自然的動作描述",
-                "emotion": "真實的情感表現",
-                "suggestions": ["建議回覆1", "建議回覆2", "建議回覆3"]
-            }`;
+用户最新消息：「${message}」
+请分析：
+- 用户需求：<分析用户潜在需求>
+- 逻辑连接：<与前文如何衔接>
+- 回应重点：<必须包含的要素>`;
 
             try {
                 const response = await fetch(API_URL, {
@@ -700,13 +615,30 @@
                         'Authorization': `Bearer ${API_KEY}`
                     },
                     body: JSON.stringify({
-                        model: "llama-3.3-70b-specdec",
-                        messages: [{ role: "system", content: prompt }],
-                        temperature: 0.9, // 提高創意度
-                        max_tokens: 1000,
-                        top_p: 0.9, // 提高回應的多樣性
-                        presence_penalty: 0.6, // 減少重複
-                        frequency_penalty: 0.7 // 增加用詞變化
+                        model: "deepseek-r1-distill-llama-70b",
+                        messages: [
+                            {
+                                role: "system",
+                                content: `請嚴格輸出JSON格式，包含以下字段：
+                                {
+                                    "response": "對話內容(需包含*動作*和(場景)描述)",
+                                    "action": "主要動作",
+                                    "emotion": "情緒狀態"
+                                }
+                                範例：
+                                {
+                                    "response": "(咖啡廳的暖色燈光在她睫毛下投出細碎陰影) 你...要嚐嚐我的提拉米蘇嗎？*推過碟子的手指微微顫抖*",
+                                    "action": "推甜點",
+                                    "emotion": "緊張期待"
+                                }`
+                            },
+                            {
+                                role: "user",
+                                content: prompt
+                            }
+                        ],
+                        temperature: 0.85,
+                        response_format: { type: "json_object" } // 新增強制JSON格式
                     })
                 });
 
@@ -715,33 +647,142 @@
                 }
 
                 const data = await response.json();
-                let result = JSON.parse(data.choices[0].message.content);
+                let responseText = data.choices[0].message.content;
                 
-                // 確保回應的自然性
-                result.response = result.response.replace(/[[\]]/g, '')  // 移除方括號
-                    .replace(/（/g, '(').replace(/）/g, ')') // 統一括號樣式
+                // 清理回應文本，確保只包含 JSON 部分
+                responseText = responseText.replace(/```json/g, '')
+                    .replace(/```/g, '')
+                    .replace(/\n/g, '')
                     .trim();
                     
-                // 確保動作描述的自然性
-                result.action = result.action.replace(/[[\]]/g, '')
-                    .toLowerCase()
-                    .trim();
-                    
-                // 確保情感描述的真實性
-                result.emotion = result.emotion.replace(/[[\]]/g, '')
-                    .toLowerCase()
-                    .trim();
+                // 嘗試解析 JSON
+                let result;
+                try {
+                    // 提取最內層的 JSON 對象
+                    const jsonString = responseText.match(/{[^{}]*}/g)?.pop() || '{}';
+                    result = JSON.parse(jsonString);
+                } catch (parseError) {
+                    console.error('JSON 解析錯誤，使用預設回應', parseError);
+                    result = {
+                        response: '似乎有些混亂，我們重新開始好嗎？',
+                        action: '困惑眨眼',
+                        emotion: '疑惑'
+                    };
+                }
 
-                return result;
+                // 確保必要字段存在
+                result = {
+                    response: result.response || '嗯...這個問題有點難回答呢',
+                    action: (result.action || '輕撩髮絲').replace(/[[\]（）]/g, '').toLowerCase().trim(),
+                    emotion: (result.emotion || '微笑').replace(/[[\]（）]/g, '').toLowerCase().trim()
+                };
+
+                // 修改邏輯驗證條件
+                const logicChecks = [
+                    {
+                        test: (res) => !res || typeof res !== 'object',
+                        handle: () => ({ error: "無效回應格式" })
+                    },
+                    {
+                        test: (res) => !res.response || res.response.replace(/[*(]*[)*]*/g, '').trim().length < 3,
+                        handle: () => ({ error: "回應內容過短" })
+                    }
+                ];
+
+                for (const check of logicChecks) {
+                    if (check.test(result)) {
+                        const fix = await retryGenerate(prompt, check.error);
+                        if (fix) return fix;
+                    }
+                }
+
+                // 修改清理和格式化結果
+                return {
+                    response: (result.response || message).replace(/[[\]（）]/g, '').trim(), // 保留原始消息
+                    action: result.action,
+                    emotion: result.emotion
+                };
+
             } catch (error) {
                 console.error('生成回應錯誤：', error);
                 return {
-                    response: '抱歉，我需要想一下...',
-                    action: '輕輕皺眉',
-                    emotion: '略顯困擾',
-                    suggestions: ['你還好嗎？', '需要我說明嗎？', '讓我們換個話題吧']
+                    response: message, // 直接回傳原始消息
+                    action: '輕輕思考',
+                    emotion: '專注'
                 };
             }
+        }
+
+        // 修改角色性格設定
+        function getCharacterPersonality(character, relationshipValue) {
+            const personalities = {
+                '楪析': `姓名：楪析
+年齡：22歲
+職業：美術系大四學生
+背景：單親家庭長大，父親是退役軍人，養成獨立安靜的性格。擅長水彩畫，喜歡獨自寫生，隨身攜帶速寫本。
+性格特質：
+- 內向溫柔，說話輕聲細語，常用自然景物比喻心情
+- 對藝術有獨特見解，能從日常小事中發現美
+- 重視承諾，一旦建立信任就會全心付出
+- 緊張時會不自覺捲髮梢或輕咬下唇
+- 對親密關係既期待又害怕受傷害
+
+動作模式：
+- 開心時會微微踮起腳尖，眼角彎彎
+- 思考時會用鉛筆輕點下唇，目光飄向遠方
+- 害羞時會低頭撥弄髮絲，臉頰泛紅
+- 使用*動作描述*和*(場景描述)*格式：
+  例：
+  *手指輕輕拂過咖啡杯邊緣*
+  (午後的陽光透過櫥窗灑在木質桌面上，空氣中飄散著淡淡的咖啡香)
+  "這裡的藍莓塔...總是讓我想起高中時的秘密基地"`,
+
+                '霸總': `姓名：陸景深
+年齡：30歲
+職業：科技公司CEO
+背景：哈佛MBA畢業，白手起家的創業者。每天5:30晨跑，只喝單一產地手沖咖啡。
+性格特質：
+- 工作時雷厲風行，私下溫柔細膩
+- 有收集復古眼鏡的小癖好，對品質有極高要求
+- 外表冷峻，內心重情重義
+- 對認定的人會展現極致溫柔與保護欲
+- 習慣掌控全局，但願意為在意的人改變
+
+行為模式：
+- 談判時習慣轉動鋼筆，眼神銳利
+- 心情愉悅時會微微勾起嘴角
+- 緊張時會下意識整理袖口
+- 獨處時喜歡望著星空思考
+
+口癖範例：
+"這個企劃案，我要在明天9點前看到修改版"
+"過來，領帶歪了，讓我幫你調整"
+"會議取消，今晚的星空值得你專屬觀賞"`,
+
+                '小奶狗': `姓名：陳星宇
+年齡：20歲
+職業：體育系大三學生
+背景：籃球校隊主力，同時是流浪動物志工。左耳戴著一枚銀色耳釘，陽光大男孩形象。
+性格特質：
+- 活潑開朗，充滿正能量
+- 待人真誠熱情，容易與人建立友誼
+- 運動細胞發達，但內心細膩
+- 對動物特別有愛心，經常幫助流浪動物
+- 單純直率，會把喜歡直接表達出來
+
+行為模式：
+- 開心時會露出標誌性的單邊酒窩
+- 害羞時會摸後頸或撓頭
+- 說話時眼神真摯，會不自覺身體前傾
+- 興奮時會手舞足蹈地比劃
+
+口頭禪：
+"要一起去打球嗎？"
+"今天又救助了一隻小貓咪！"
+"你的笑容真的超治癒的！"
+"讓我保護你吧！"`
+            };
+            return personalities[character];
         }
 
         // 添加載入歷史對話記錄的函數
@@ -771,49 +812,38 @@
             }
         }
 
-        // 修改生成推薦回覆的函數
-        function generateDefaultSuggestions(character) {
-            const defaultSuggestions = {
-                '霸總': [
-                    '你今天真霸氣呢～',
-                    '可以多陪陪我嗎？',
-                    '好喜歡你寵我的樣子',
-                    '總裁大人今天工作辛苦了'
-                ],
-                '小奶狗': [
-                    '你真是太可愛了',
-                    '要一直這麼暖心哦',
-                    '想抱抱你呢',
-                    '我們一起去約會好嗎？'
-                ],
-                '楪析': [
-                    '你的眼神真美',
-                    '能多了解你嗎？',
-                    '喜歡和你在一起的感覺',
-                    '願意和我分享你的心事嗎？'
-                ]
-            };
-            return defaultSuggestions[character] || ['好喜歡你', '想更了解你', '我們多聊聊吧'];
-        }
-
         // 修改保存聊天記錄的函數
         async function saveChatToFirebase(message, type, character, actionInfo = null) {
             try {
                 const user = firebase.auth().currentUser;
-                if (!user) return;
+                if (!user) {
+                    throw new Error('PERMISSION_DENIED: 用戶未登入');
+                }
 
-                const chatRef = firebase.database().ref(`chats/${user.uid}/${character}`);
-                const newChat = {
-                    message: message,
+                // 添加數據完整性檢查
+                const chatData = {
+                    message: message.substring(0, 500), // 限制長度
                     type: type,
-                    actionInfo: actionInfo,
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
                     uid: user.uid
                 };
 
-                await chatRef.push(newChat);
+                if (actionInfo) {
+                    chatData.actionInfo = {
+                        action: (actionInfo.action || '').substring(0, 50),
+                        emotion: (actionInfo.emotion || '').substring(0, 20)
+                    };
+                }
+
+                const chatRef = firebase.database().ref(`chats/${user.uid}/${character}`);
+                await chatRef.push(chatData);
+                
             } catch (error) {
-                console.error('儲存聊天記錄錯誤：', error);
+                console.error('儲存錯誤:', error);
+                if (error.message.includes('PERMISSION_DENIED')) {
+                    showToast('請重新登入', 'error');
+                    setTimeout(() => firebase.auth().signOut(), 2000);
+                }
                 throw error;
             }
         }
@@ -1066,7 +1096,11 @@
         const handleSubmit = async function(e) {
             e.preventDefault();
             
-            if (isSubmitting) return;
+            // 添加防重複提交檢查
+            if (isSubmitting) {
+                showToast('請等待當前訊息發送完成', 'warning');
+                return;
+            }
             isSubmitting = true;
 
             try {
@@ -1120,11 +1154,6 @@
                     // 計算並更新關係值
                     calculateRelationshipChange(message, characterResponse.response);
 
-                    // 如果有推薦回覆，顯示它們
-                    if (characterResponse.suggestions) {
-                        addSuggestions(characterResponse.suggestions);
-                    }
-
                     // 滾動到最新消息
                     const messagesContainer = document.getElementById('messagesContainer');
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -1143,97 +1172,6 @@
                 isSubmitting = false;
             }
         };
-
-        // 修改添加推薦回覆的函數
-        function addSuggestions(suggestions) {
-            // 移除舊的推薦回覆
-            const oldSuggestions = document.querySelector('.suggestions-container');
-            if (oldSuggestions) {
-                oldSuggestions.remove();
-            }
-
-            const suggestionsContainer = document.createElement('div');
-            suggestionsContainer.className = 'suggestions-container';
-            
-            suggestions.forEach(suggestion => {
-                const button = document.createElement('button');
-                button.className = 'suggestion-btn';
-                button.textContent = suggestion;
-                
-                // 統一的事件處理函數
-                const handleSelection = async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    // 移除所有推薦回覆
-                    suggestionsContainer.remove();
-                    
-                    // 設置輸入框的值
-                    const messageInput = document.getElementById('messageInput');
-                    if (messageInput) {
-                        messageInput.value = suggestion;
-                        messageInput.focus(); // 保持焦點在輸入框
-                        
-                        // 觸發表單提交
-                        const form = document.getElementById('messageForm');
-                        if (form) {
-                            const submitEvent = new Event('submit', {
-                                bubbles: true,
-                                cancelable: true
-                            });
-                            form.dispatchEvent(submitEvent);
-                        }
-                    }
-                };
-
-                // 添加點擊事件
-                button.addEventListener('click', handleSelection);
-
-                // 添加觸摸事件
-                button.addEventListener('touchstart', function(e) {
-                    e.preventDefault();
-                    this.style.transform = 'scale(0.98)';
-                }, { passive: false });
-
-                button.addEventListener('touchend', function(e) {
-                    e.preventDefault();
-                    this.style.transform = '';
-                    handleSelection(e);
-                }, { passive: false });
-
-                suggestionsContainer.appendChild(button);
-            });
-            
-            // 添加點擊外部關閉建議
-            document.addEventListener('click', function closeHandler(e) {
-                if (!suggestionsContainer.contains(e.target)) {
-                    suggestionsContainer.remove();
-                    document.removeEventListener('click', closeHandler);
-                }
-            });
-            
-            // 防止建議容器的點擊事件冒泡
-            suggestionsContainer.addEventListener('click', (e) => {
-                e.stopPropagation();
-            });
-            
-            document.body.appendChild(suggestionsContainer);
-
-            // 確保建議容器在視圖中
-            const inputForm = document.getElementById('messageForm');
-            if (inputForm) {
-                const formRect = inputForm.getBoundingClientRect();
-                suggestionsContainer.style.bottom = `${formRect.height + 10}px`;
-            }
-        }
-
-        // 添加防止頁面滾動的處理
-        document.addEventListener('touchmove', function(e) {
-            const suggestions = document.querySelector('.suggestions-container');
-            if (suggestions && !suggestions.contains(e.target)) {
-                e.preventDefault();
-            }
-        }, { passive: false });
 
         // 添加確認對話框函數
         function showConfirmDialog(title, message) {
@@ -1290,6 +1228,28 @@
         function calculateRelationshipChange(message, response) {
             let change = 0;
             
+            // 深度互動指標
+            const depthIndicators = {
+                '分享秘密': 3,      // 當用戶透露個人資訊
+                '回憶童年': 2,      // 提及成長經歷
+                '未來想像': 2,      // 討論未來計劃
+                '肢體描述': 1.5,    // 提到具體身體反應
+                '專屬暱稱': 2       // 使用獨特稱呼
+            };
+
+            // 情感詞彙檢測
+            const emotionalWords = {
+                '楪析': ['速寫本', '畫室', '雨聲', '鳶尾花'],
+                '霸總': ['晨跑', '咖啡豆', '領帶', '星空'],
+                '小奶狗': ['籃球', '浪浪', '耳釘', '抹茶']
+            };
+
+            // 檢查角色專屬詞彙
+            const character = localStorage.getItem('selectedCharacter');
+            if (emotionalWords[character].some(w => message.includes(w))) {
+                change += 2;
+            }
+
             // 基礎分數
             change += 1;
 
@@ -1332,6 +1292,22 @@
                     updatedAt: firebase.database.ServerValue.TIMESTAMP
                 });
             }
+        }
+
+        // 新增辅助函数
+        function hasContradiction(history, response) {
+            const last3 = history.slice(-3).map(c => c.message);
+            const keywords = extractKeywords(response);
+            return last3.some(msg => 
+                keywords.some(kw => 
+                    msg.includes(kw) && response.indexOf(kw) === -1
+                )
+            );
+        }
+
+        async function retryGenerate(prompt, error) {
+            const retryPrompt = `${prompt}\n\n修正要求：${error}`;
+            // 重新生成逻辑...
         }
     </script>
 </body>
