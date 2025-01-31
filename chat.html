@@ -58,11 +58,12 @@
                 max-height: 160px;
                 overflow-y: auto;
                 box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+                -webkit-overflow-scrolling: touch;
             }
             .suggestion-btn {
                 background: linear-gradient(135deg, #f0f4ff 0%, #e5e9ff 100%);
                 color: #4f46e5;
-                padding: 8px 12px;
+                padding: 12px 16px;
                 border-radius: 12px;
                 font-size: 0.875rem;
                 font-weight: 500;
@@ -71,11 +72,14 @@
                 transition: all 0.2s ease;
                 white-space: normal;
                 text-align: center;
-                min-height: 40px;
+                min-height: 44px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 line-height: 1.3;
+                cursor: pointer;
+                -webkit-tap-highlight-color: transparent;
+                touch-action: manipulation;
             }
             .suggestion-btn:active {
                 transform: scale(0.98);
@@ -182,13 +186,14 @@
                 .suggestions-container {
                     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
                     padding: 8px;
-                    gap: 6px;
+                    gap: 8px;
+                    bottom: 70px;
                 }
 
                 .suggestion-btn {
-                    font-size: 0.8125rem;
-                    min-height: 36px;
-                    padding: 6px 10px;
+                    font-size: 0.875rem;
+                    min-height: 40px;
+                    padding: 10px 14px;
                 }
             }
 
@@ -1095,17 +1100,35 @@
                 const button = document.createElement('button');
                 button.className = 'suggestion-btn';
                 button.textContent = suggestion;
-                button.onclick = async () => {
-                    // 立即移除所有推薦回覆
+                
+                // 修改點擊處理
+                button.addEventListener('touchstart', function(e) {
+                    e.preventDefault(); // 防止觸發其他事件
+                    this.style.transform = 'scale(0.98)';
+                }, { passive: false });
+
+                button.addEventListener('touchend', async function(e) {
+                    e.preventDefault();
+                    this.style.transform = '';
+                    
+                    // 移除所有推薦回覆
                     suggestionsContainer.remove();
                     
-                    // 直接發送訊息
+                    // 設置輸入框的值
                     const messageInput = document.getElementById('messageInput');
                     messageInput.value = suggestion;
                     
-                    // 觸發發送
-                    handleSubmit(new Event('submit'));
-                };
+                    // 觸發表單提交
+                    const form = document.getElementById('messageForm');
+                    if (form) {
+                        const submitEvent = new Event('submit', {
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        form.dispatchEvent(submitEvent);
+                    }
+                }, { passive: false });
+
                 suggestionsContainer.appendChild(button);
             });
             
