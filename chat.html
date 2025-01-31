@@ -434,8 +434,11 @@
                     case '霸總':
                         avatarSrc = '霸總.jpeg';
                         break;
+                    case '望宇':
+                        avatarSrc = '望宇.jpeg';
+                        break;
                     default:
-                        avatarSrc = '小奶狗.jpeg';
+                        avatarSrc = 'default.jpeg';
                 }
                 
                 messageDiv.innerHTML = `
@@ -508,12 +511,113 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // 添加輸入中提示函數
+        // 修改發送訊息後的處理
+        const handleSubmit = async function(e) {
+            e.preventDefault();
+            
+            // 添加防重複提交檢查
+            if (isSubmitting) {
+                showToast('請等待當前訊息發送完成', 'warning');
+                return;
+            }
+            isSubmitting = true;
+
+            // 保存輸入指示器的引用
+            let typingIndicator = null;
+
+            try {
+                const messageInput = document.getElementById('messageInput');
+                if (!messageInput) {
+                    console.error('找不到輸入框元素');
+                    isSubmitting = false;
+                    return;
+                }
+
+                const message = messageInput.value.trim();
+                const character = localStorage.getItem('selectedCharacter');
+                
+                if (!character) {
+                    console.error('未選擇角色');
+                    showToast('請重新選擇角色', 'error');
+                    isSubmitting = false;
+                    return;
+                }
+                
+                if (message) {
+                    // 添加用戶訊息到UI
+                    addMessage(message, 'user');
+                    
+                    // 保存用戶訊息到Firebase
+                    await saveChatToFirebase(message, 'user', character);
+                    
+                    // 清空輸入框
+                    messageInput.value = '';
+
+                    // 顯示正在輸入狀態
+                    typingIndicator = addTypingIndicator();
+
+                    // 設置超時保護
+                    const timeoutPromise = new Promise((_, reject) => {
+                        setTimeout(() => reject(new Error('回應超時')), 30000); // 30秒超時
+                    });
+
+                    // 使用 Promise.race 競爭
+                    const characterResponse = await Promise.race([
+                        generateCharacterResponse(message, character, relationshipValue),
+                        timeoutPromise
+                    ]);
+
+                    // 確保移除輸入指示器
+                    if (typingIndicator) {
+                        typingIndicator.remove();
+                        typingIndicator = null;
+                    }
+
+                    // 添加角色回應到UI
+                    const actionInfo = {
+                        action: characterResponse.action,
+                        emotion: characterResponse.emotion
+                    };
+                    
+                    addMessage(characterResponse.response, 'character', actionInfo);
+                    
+                    // 保存角色回應到Firebase
+                    await saveChatToFirebase(characterResponse.response, 'character', character, actionInfo);
+
+                    // 計算並更新關係值
+                    calculateRelationshipChange(message, characterResponse.response);
+
+                    // 滾動到最新消息
+                    const messagesContainer = document.getElementById('messagesContainer');
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+
+            } catch (error) {
+                console.error('發送訊息錯誤：', error);
+                showToast(error.message === '回應超時' ? '回應超時，請重試' : '發送訊息失敗，請稍後再試', 'error');
+                
+                // 確保在錯誤情況下也移除輸入指示器
+                if (typingIndicator) {
+                    typingIndicator.remove();
+                    typingIndicator = null;
+                }
+            } finally {
+                isSubmitting = false;
+                // 發送完成後重新初始化表單
+                initializeMessageForm();
+            }
+        };
+
+        // 修改添加輸入指示器函數
         function addTypingIndicator() {
+            // 先移除可能存在的舊指示器
+            removeTypingIndicator();
+            
             const messagesContainer = document.getElementById('messagesContainer');
             if (!messagesContainer) return null;
 
             const typingDiv = document.createElement('div');
+            typingDiv.id = 'typingIndicator';  // 添加ID以便於查找
             typingDiv.className = 'flex justify-start mb-4';
             typingDiv.innerHTML = `
                 <div class="message-bubble bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl shadow-sm flex items-center gap-2">
@@ -526,6 +630,20 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             return typingDiv;
         }
+
+        // 添加移除輸入指示器函數
+        function removeTypingIndicator() {
+            const existingIndicator = document.getElementById('typingIndicator');
+            if (existingIndicator) {
+                existingIndicator.remove();
+            }
+        }
+
+        // 在頁面載入時也清理可能殘留的輸入指示器
+        document.addEventListener('DOMContentLoaded', function() {
+            removeTypingIndicator();
+            // ... 其他現有的 DOMContentLoaded 代碼 ...
+        });
 
         // Firebase 配置
         const firebaseConfig = {
@@ -759,7 +877,7 @@ ${chatHistory.slice(-5).map((c, i) => {
 "過來，領帶歪了，讓我幫你調整"
 "會議取消，今晚的星空值得你專屬觀賞"`,
 
-                '小奶狗': `姓名：陳星宇
+                '望宇': `姓名：望宇
 年齡：20歲
 職業：體育系大三學生
 背景：籃球校隊主力，同時是流浪動物志工。左耳戴著一枚銀色耳釘，陽光大男孩形象。
@@ -774,7 +892,7 @@ ${chatHistory.slice(-5).map((c, i) => {
 - 開心時會露出標誌性的單邊酒窩
 - 害羞時會摸後頸或撓頭
 - 說話時眼神真摯，會不自覺身體前傾
-- 興奮時會手舞足蹈地比劃
+- 興奮時會害羞的微笑
 
 口頭禪：
 "要一起去打球嗎？"
@@ -991,8 +1109,11 @@ ${chatHistory.slice(-5).map((c, i) => {
                     case '霸總':
                         avatarImg.src = '霸總.jpeg';
                         break;
+                    case '望宇':
+                        avatarImg.src = '望宇.jpeg';
+                        break;
                     default:
-                        avatarImg.src = '小奶狗.jpeg';
+                        avatarImg.src = 'default.jpeg';
                 }
                 avatarImg.alt = `${character}的頭像`;
                 
@@ -1092,87 +1213,6 @@ ${chatHistory.slice(-5).map((c, i) => {
             });
         }
 
-        // 修改發送訊息後的處理
-        const handleSubmit = async function(e) {
-            e.preventDefault();
-            
-            // 添加防重複提交檢查
-            if (isSubmitting) {
-                showToast('請等待當前訊息發送完成', 'warning');
-                return;
-            }
-            isSubmitting = true;
-
-            try {
-                const messageInput = document.getElementById('messageInput');
-                if (!messageInput) {
-                    console.error('找不到輸入框元素');
-                    isSubmitting = false;
-                    return;
-                }
-
-                const message = messageInput.value.trim();
-                const character = localStorage.getItem('selectedCharacter');
-                
-                if (!character) {
-                    console.error('未選擇角色');
-                    showToast('請重新選擇角色', 'error');
-                    isSubmitting = false;
-                    return;
-                }
-                
-                if (message) {
-                    // 添加用戶訊息到UI
-                    addMessage(message, 'user');
-                    
-                    // 保存用戶訊息到Firebase
-                    await saveChatToFirebase(message, 'user', character);
-                    
-                    // 清空輸入框
-                    messageInput.value = '';
-
-                    // 顯示正在輸入狀態
-                    const typingIndicator = addTypingIndicator();
-
-                    // 獲取角色回應
-                    const characterResponse = await generateCharacterResponse(message, character, relationshipValue);
-
-                    // 移除輸入中提示
-                    typingIndicator.remove();
-
-                    // 添加角色回應到UI
-                    const actionInfo = {
-                        action: characterResponse.action,
-                        emotion: characterResponse.emotion
-                    };
-                    
-                    addMessage(characterResponse.response, 'character', actionInfo);
-                    
-                    // 保存角色回應到Firebase
-                    await saveChatToFirebase(characterResponse.response, 'character', character, actionInfo);
-
-                    // 計算並更新關係值
-                    calculateRelationshipChange(message, characterResponse.response);
-
-                    // 滾動到最新消息
-                    const messagesContainer = document.getElementById('messagesContainer');
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-                } else {
-                    isSubmitting = false;
-                }
-
-                // 發送完成後重新初始化表單
-                initializeMessageForm();
-                
-            } catch (error) {
-                console.error('發送訊息錯誤：', error);
-                showToast('發送訊息失敗，請稍後再試', 'error');
-            } finally {
-                isSubmitting = false;
-            }
-        };
-
         // 添加確認對話框函數
         function showConfirmDialog(title, message) {
             return new Promise((resolve) => {
@@ -1241,7 +1281,7 @@ ${chatHistory.slice(-5).map((c, i) => {
             const emotionalWords = {
                 '楪析': ['速寫本', '畫室', '雨聲', '鳶尾花'],
                 '霸總': ['晨跑', '咖啡豆', '領帶', '星空'],
-                '小奶狗': ['籃球', '浪浪', '耳釘', '抹茶']
+                '望宇': ['籃球', '浪浪', '耳釘', '抹茶']
             };
 
             // 檢查角色專屬詞彙
